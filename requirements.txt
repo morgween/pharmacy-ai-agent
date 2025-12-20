@@ -1,0 +1,14 @@
+# Core
+fastapi==0.109.0
+uvicorn==0.27.0
+python-dotenv==1.0.0
+
+# OpenAI
+openai==1.12.0
+
+# Database
+SQLAlchemy==2.0.25
+
+# Utilities
+pydantic==2.5.3
+pydantic-settings==2.1.0
