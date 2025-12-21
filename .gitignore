@@ -209,3 +209,15 @@ __marimo__/
 
 # Specific files
 Agent Engineer - Home Assignment 18-12-25.pdf
+
+# Test files
+test_*.py
+
+# Database files
+*.db
+
+# User data (contains passwords)
+data/users.json
+
+# Claude Code plans
+.claude/
