@@ -1,25 +1,34 @@
+"""abstract base class for medication data sources"""
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, List
 
 class MedicationDataSource(ABC):
-    """Abstract base class for medication data sources"""
-    
+    """abstract base class defining interface for medication data operations"""
+
     @abstractmethod
     async def get_medication_by_name(self, name: str, language: str = 'en') -> Optional[Dict]:
-        """Get medication by name"""
+        """
+        get medication by name using case-insensitive match
+
+        args:
+            name: medication name to search for
+            language: language code (en, he, ru, ar)
+
+        returns:
+            medication object if found, none otherwise
+        """
         pass
-    
-    @abstractmethod
-    async def check_stock(self, medication_id: str, quantity: int = 1) -> Optional[Dict]:
-        """Check stock availability"""
-        pass
-    
-    @abstractmethod
-    async def get_prescription_requirements(self, medication_id: str, language: str = 'en') -> Optional[Dict]:
-        """Check if prescription is required"""
-        pass
-    
+
     @abstractmethod
     async def search_by_ingredient(self, ingredient: str, language: str = 'en') -> List[Dict]:
-        """Search medications by active ingredient"""
+        """
+        search medications by active ingredient
+
+        args:
+            ingredient: active ingredient name to search
+            language: language code (en, he, ru, ar)
+
+        returns:
+            list of medication objects matching the ingredient
+        """
         pass
