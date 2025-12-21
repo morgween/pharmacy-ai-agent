@@ -1,0 +1,18 @@
+{
+  "type": "function",
+  "function": {
+    "name": "check_stock",
+    "description": "Check if a medication is currently in stock (returns boolean). Use this to quickly verify availability without needing exact quantities.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "med_id": {
+          "type": "string",
+          "description": "Internal medication id (e.g., MED001). Use resolve_medication_id first if you only have the medication name."
+        }
+      },
+      "required": ["med_id"],
+      "additionalProperties": false
+    }
+  }
+}

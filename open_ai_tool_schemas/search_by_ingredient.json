@@ -1,0 +1,23 @@
+{
+  "type": "function",
+  "function": {
+    "name": "search_by_ingredient",
+    "description": "Search for medications by active ingredient name in a specified language. Returns all medications containing the exact active ingredient (case-insensitive match). Use this when customers ask about medications with specific active ingredients or want to find alternatives.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "ingredient": {
+          "type": "string",
+          "description": "Active ingredient name to search for (e.g., 'Ibuprofen', 'Omeprazole', 'Acetylsalicylic acid'). The search will be case-insensitive but exact match."
+        },
+        "lang": {
+          "type": "string",
+          "enum": ["en", "he", "ru", "ar"],
+          "description": "Language of the ingredient name provided by the user."
+        }
+      },
+      "required": ["ingredient", "lang"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "function",
+  "function": {
+    "name": "get_medication_info",
+    "description": "Return factual medication information (active ingredient, dosage form, label usage instructions, warnings, category, prescription requirement). Does NOT provide medical advice.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": { "type": "string", "description": "Medication name or id. If it's a name, provide lang." },
+        "lang": { "type": "string", "enum": ["en", "he", "ru", "ar"], "description": "Language of the medication name (ignored if query is an id)." }
+      },
+      "required": ["query"],
+      "additionalProperties": false
+    }
+  }
+}

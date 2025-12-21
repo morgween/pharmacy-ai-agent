@@ -1,0 +1,16 @@
+{
+  "type": "function",
+  "function": {
+    "name": "resolve_medication_id",
+    "description": "Resolve a medication internal id (e.g., MED001) from a user-provided name in a given language. Use this before inventory calls when the user doesn't provide an id.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Medication name as written by the user." },
+        "lang": { "type": "string", "enum": ["en", "he", "ru", "ar"], "description": "Language of the provided name." }
+      },
+      "required": ["name", "lang"],
+      "additionalProperties": false
+    }
+  }
+}
