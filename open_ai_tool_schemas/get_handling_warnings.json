@@ -1,0 +1,23 @@
+{
+  "type": "function",
+  "function": {
+    "name": "get_handling_warnings",
+    "description": "Get label-based safe handling instructions and non-personalized warning information for a medication (storage temperature, child-safety warnings, etc.). Returns only factual information from product labels.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "med_id": {
+          "type": "string",
+          "description": "Medication identifier (e.g., MED001). Use resolve_medication_id first if you only have the medication name."
+        },
+        "lang": {
+          "type": "string",
+          "enum": ["en", "he", "ru", "ar"],
+          "description": "Language code for the response"
+        }
+      },
+      "required": ["med_id"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "type": "function",
+  "function": {
+    "name": "get_prescription_status",
+    "description": "Check the status of an existing prescription. Returns current status (pending, ready, picked_up, cancelled) and fulfillment details. Does NOT provide medical advice.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "prescription_id": {
+          "type": "string",
+          "description": "Prescription identifier (e.g., RX_ABC123XYZ456)"
+        }
+      },
+      "required": ["prescription_id"],
+      "additionalProperties": false
+    }
+  }
+}

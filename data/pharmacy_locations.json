@@ -1,0 +1,112 @@
+[
+  {
+    "id": "PHARM001",
+    "name": "Central Pharmacy",
+    "address": "123 Main Street, Tel Aviv",
+    "city": "Tel Aviv",
+    "zip_code": "61000",
+    "phone": "+972-3-1234567",
+    "hours": {
+      "sunday": "08:00-22:00",
+      "monday": "08:00-22:00",
+      "tuesday": "08:00-22:00",
+      "wednesday": "08:00-22:00",
+      "thursday": "08:00-22:00",
+      "friday": "08:00-15:00",
+      "saturday": "Closed"
+    },
+    "services": ["prescription_filling", "consultation", "delivery"],
+    "coordinates": {
+      "lat": 32.0853,
+      "lng": 34.7818
+    }
+  },
+  {
+    "id": "PHARM002",
+    "name": "Ramat Aviv Pharmacy",
+    "address": "45 Einstein Street, Tel Aviv",
+    "city": "Tel Aviv",
+    "zip_code": "69978",
+    "phone": "+972-3-2345678",
+    "hours": {
+      "sunday": "07:00-23:00",
+      "monday": "07:00-23:00",
+      "tuesday": "07:00-23:00",
+      "wednesday": "07:00-23:00",
+      "thursday": "07:00-23:00",
+      "friday": "07:00-16:00",
+      "saturday": "Closed"
+    },
+    "services": ["prescription_filling", "24h_emergency", "consultation"],
+    "coordinates": {
+      "lat": 32.1133,
+      "lng": 34.8036
+    }
+  },
+  {
+    "id": "PHARM003",
+    "name": "Haifa Port Pharmacy",
+    "address": "78 HaNassi Avenue, Haifa",
+    "city": "Haifa",
+    "zip_code": "31000",
+    "phone": "+972-4-3456789",
+    "hours": {
+      "sunday": "08:00-20:00",
+      "monday": "08:00-20:00",
+      "tuesday": "08:00-20:00",
+      "wednesday": "08:00-20:00",
+      "thursday": "08:00-20:00",
+      "friday": "08:00-14:00",
+      "saturday": "Closed"
+    },
+    "services": ["prescription_filling", "consultation", "home_visits"],
+    "coordinates": {
+      "lat": 32.7940,
+      "lng": 34.9896
+    }
+  },
+  {
+    "id": "PHARM004",
+    "name": "Jerusalem Medical Pharmacy",
+    "address": "12 Jaffa Road, Jerusalem",
+    "city": "Jerusalem",
+    "zip_code": "91000",
+    "phone": "+972-2-4567890",
+    "hours": {
+      "sunday": "08:00-21:00",
+      "monday": "08:00-21:00",
+      "tuesday": "08:00-21:00",
+      "wednesday": "08:00-21:00",
+      "thursday": "08:00-21:00",
+      "friday": "08:00-13:00",
+      "saturday": "Closed"
+    },
+    "services": ["prescription_filling", "consultation", "compounding"],
+    "coordinates": {
+      "lat": 31.7683,
+      "lng": 35.2137
+    }
+  },
+  {
+    "id": "PHARM005",
+    "name": "Be'er Sheva South Pharmacy",
+    "address": "34 Rager Boulevard, Be'er Sheva",
+    "city": "Be'er Sheva",
+    "zip_code": "84100",
+    "phone": "+972-8-5678901",
+    "hours": {
+      "sunday": "08:00-22:00",
+      "monday": "08:00-22:00",
+      "tuesday": "08:00-22:00",
+      "wednesday": "08:00-22:00",
+      "thursday": "08:00-22:00",
+      "friday": "08:00-15:00",
+      "saturday": "Closed"
+    },
+    "services": ["prescription_filling", "consultation", "delivery", "24h_emergency"],
+    "coordinates": {
+      "lat": 31.2518,
+      "lng": 34.7913
+    }
+  }
+]

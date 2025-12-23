@@ -1,0 +1,26 @@
+{
+  "type": "function",
+  "function": {
+    "name": "find_nearest_pharmacy",
+    "description": "Find nearest pharmacy/drugstore locations based on user's zip code or city. Returns pharmacy addresses, hours, phone numbers, and available services.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "zip_code": {
+          "type": "string",
+          "description": "Postal/ZIP code to search near"
+        },
+        "city": {
+          "type": "string",
+          "description": "City name to search in"
+        },
+        "lang": {
+          "type": "string",
+          "enum": ["en", "he", "ru", "ar"],
+          "description": "Language for response (default: en)"
+        }
+      },
+      "required": []
+    }
+  }
+}
