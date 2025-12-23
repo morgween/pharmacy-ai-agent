@@ -25,8 +25,13 @@ type ToolPart = {
   type?: string;
 };
 
-const RTL_LANGS = new Set(["he", "ar"]);
-const TOOL_INPUT_KEYS = ["query", "name", "ingredient", "zip_code", "city", "med_id", "prescription_id"];
+type TextPart = {
+  type: "text";
+  text: string;
+};
+
+const RTL_LANGS = new Set<Language>(["he", "ar"]);
+const TOOL_INPUT_KEYS = ["query", "name", "ingredient", "zip_code", "city", "med_id", "prescription_id"] as const;
 
 const UI_TEXT: Record<Language, Record<string, string>> = {
   en: {
@@ -122,7 +127,6 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
   { value: "ar", label: "🇸🇦" },
 ];
 
-
 const filterToolInput = (input: unknown) => {
   if (!input || typeof input !== "object") return input;
   const filtered: Record<string, unknown> = {};
@@ -132,6 +136,27 @@ const filterToolInput = (input: unknown) => {
     }
   }
   return Object.keys(filtered).length ? filtered : input;
+};
+
+const isToolPart = (part: unknown): part is ToolPart => {
+  if (!part || typeof part !== "object") return false;
+  const candidate = part as ToolPart;
+  return (
+    "toolCallId" in candidate ||
+    "toolName" in candidate ||
+    "name" in candidate ||
+    "input" in candidate ||
+    "args" in candidate ||
+    "arguments" in candidate ||
+    "state" in candidate ||
+    "type" in candidate
+  );
+};
+
+const isTextPart = (part: unknown): part is TextPart => {
+  if (!part || typeof part !== "object") return false;
+  const candidate = part as { type?: string; text?: unknown };
+  return candidate.type === "text" && typeof candidate.text === "string";
 };
 
 export default function Home() {
@@ -223,21 +248,6 @@ export default function Home() {
   const isLoading = status !== "ready";
   const uiText = UI_TEXT[language] ?? UI_TEXT.en;
 
-  const isToolPart = (part: unknown): part is ToolPart => {
-    if (!part || typeof part !== "object") return false;
-    const candidate = part as ToolPart;
-    return (
-      "toolCallId" in candidate ||
-      "toolName" in candidate ||
-      "name" in candidate ||
-      "input" in candidate ||
-      "args" in candidate ||
-      "arguments" in candidate ||
-      "state" in candidate ||
-      "type" in candidate
-    );
-  };
-
   const toolCalls = useMemo(() => {
     const calls = new Map<string, ToolCallTrace>();
     const order: string[] = [];
@@ -251,11 +261,13 @@ export default function Home() {
         const toolCallId = toolPart.toolCallId;
         if (!toolCallId) continue;
 
-        const toolName = toolPart.toolName ??
+        const toolName =
+          toolPart.toolName ??
           toolPart.name ??
           (typeof toolPart.type === "string" && toolPart.type.startsWith("tool-")
             ? toolPart.type.replace("tool-", "")
             : undefined);
+
         const rawInput = toolPart.input ?? toolPart.args ?? toolPart.arguments;
         const hasInput =
           rawInput !== undefined &&
@@ -300,16 +312,20 @@ export default function Home() {
         const part = parts[j];
         if (!isToolPart(part)) continue;
         const toolPart = part as ToolPart;
-        const toolName = toolPart.toolName ??
+
+        const toolName =
+          toolPart.toolName ??
           toolPart.name ??
           (typeof toolPart.type === "string" && toolPart.type.startsWith("tool-")
             ? toolPart.type.replace("tool-", "")
             : undefined);
+
         const rawInput = toolPart.input ?? toolPart.args ?? toolPart.arguments;
         const hasInput =
           rawInput !== undefined &&
           rawInput !== null &&
           (typeof rawInput !== "object" || Object.keys(rawInput).length > 0);
+
         if (toolName && hasInput) {
           latest = { name: toolName };
           break;
@@ -320,10 +336,11 @@ export default function Home() {
 
     return latest;
   }, [messages]);
+
   const uiDirection = RTL_LANGS.has(language) ? "rtl" : "ltr";
 
   useEffect(() => {
-    const behavior = status === "ready" ? "auto" : "smooth";
+    const behavior: ScrollBehavior = status === "ready" ? "auto" : "smooth";
     endRef.current?.scrollIntoView({ behavior, block: "end" });
   }, [messages, status]);
 
@@ -388,7 +405,10 @@ export default function Home() {
           <div className="auth-chip">
             {authToken ? (
               <>
-                <span>{uiText.signedIn}{authName ? `: ${authName}` : ""}</span>
+                <span>
+                  {uiText.signedIn}
+                  {authName ? `: ${authName}` : ""}
+                </span>
                 <button type="button" onClick={handleLogout} className="ghost-button">
                   {uiText.logout}
                 </button>
@@ -415,18 +435,21 @@ export default function Home() {
                 <div className="empty-placeholder">{uiText.empty}</div>
               </div>
             )}
+
             {messages.map((message) => (
               <div key={message.id} className={`message ${message.role}`}>
                 <strong>{message.role === "assistant" ? uiText.assistant : uiText.user}</strong>
                 <div className="message-body">
-                  {message.parts
-                    .filter((part) => part.type === "text")
-                    .map((part, index) => (
-                      <span key={`${message.id}-text-${index}`}>{part.text}</span>
-                    ))}
+                  {Array.isArray(message.parts) &&
+                    message.parts
+                      .filter(isTextPart)
+                      .map((part, index) => (
+                        <span key={`${message.id}-text-${index}`}>{part.text}</span>
+                      ))}
                 </div>
               </div>
             ))}
+
             {isLoading && (
               <div className="message assistant status">
                 <strong>{uiText.assistant}</strong>
@@ -471,10 +494,19 @@ export default function Home() {
           <div className="tool-panel-header">
             <h3>{uiText.tools}</h3>
           </div>
+          {toolCalls.length === 0 && (
+            <div className="tool-call">
+              <span className="helper-text">{uiText.noTools}</span>
+            </div>
+          )}
           {toolCalls.map((call) => (
             <div key={call.id} className="tool-call">
               <strong>{call.name}</strong>
-              {call.state && <div className="helper-text">{uiText.state}: {call.state}</div>}
+              {call.state && (
+                <div className="helper-text">
+                  {uiText.state}: {call.state}
+                </div>
+              )}
               {call.args && <code>{call.args}</code>}
             </div>
           ))}
