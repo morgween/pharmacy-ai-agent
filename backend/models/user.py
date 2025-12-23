@@ -103,6 +103,31 @@ class UserUsage(Base):
     user = relationship("User", back_populates="usage_stats")
 
 
+class Prescription(Base):
+    """prescription record for medication fulfillment"""
+    __tablename__ = "prescriptions"
+
+    id = Column(String, primary_key=True)
+    patient_id = Column(String, ForeignKey("users.id"), nullable=False)
+    med_id = Column(String, nullable=False)
+    prescriber_name = Column(String, nullable=False)
+    quantity = Column(Integer, nullable=False)
+    pickup_location = Column(String, nullable=False)
+    notes = Column(Text)
+
+    # status: pending, ready, picked_up, cancelled
+    status = Column(String, default="pending")
+
+    # timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    ready_at = Column(DateTime)
+    picked_up_at = Column(DateTime)
+
+    # relationships
+    patient = relationship("User", foreign_keys=[patient_id])
+
+
 class UserDatabase:
     """user database manager with authentication and tracking"""
 
@@ -380,6 +405,50 @@ class UserDatabase:
                     "last_activity": usage.last_activity.isoformat() if usage.last_activity else None
                 }
 
+            return None
+        finally:
+            session.close()
+
+    def get_prescription_status(self, prescription_id: str) -> Optional[dict]:
+        """
+        get prescription status and details
+
+        args:
+            prescription_id: prescription identifier
+
+        returns:
+            prescription details dict or none
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        session = self.Session()
+
+        try:
+            prescription = session.query(Prescription).filter(
+                Prescription.id == prescription_id
+            ).first()
+
+            if not prescription:
+                logger.warning(f"prescription not found: {prescription_id}")
+                return None
+
+            return {
+                "prescription_id": prescription.id,
+                "patient_id": prescription.patient_id,
+                "med_id": prescription.med_id,
+                "prescriber_name": prescription.prescriber_name,
+                "quantity": prescription.quantity,
+                "pickup_location": prescription.pickup_location,
+                "status": prescription.status,
+                "notes": prescription.notes,
+                "created_at": prescription.created_at.isoformat() if prescription.created_at else None,
+                "updated_at": prescription.updated_at.isoformat() if prescription.updated_at else None,
+                "ready_at": prescription.ready_at.isoformat() if prescription.ready_at else None,
+                "picked_up_at": prescription.picked_up_at.isoformat() if prescription.picked_up_at else None
+            }
+
+        except Exception as e:
+            logger.error(f"error getting prescription status: {e}", exc_info=True)
             return None
         finally:
             session.close()

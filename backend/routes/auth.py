@@ -20,7 +20,7 @@ class LoginResponse(BaseModel):
     name: str
     email: str
     preferred_language: str
-    token: str  # simplified: just user_id for demo
+    token: str
 
 
 class UserStatsResponse(BaseModel):
@@ -56,7 +56,7 @@ async def login(request: LoginRequest):
         name=user.name,
         email=user.email,
         preferred_language=user.preferred_language,
-        token=user.id  # simplified token for demo
+        token=user.id
     )
 
 

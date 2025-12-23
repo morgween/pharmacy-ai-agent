@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     medication_data_source: str = "api"
 
     # openai configuration
-    openai_model: str = "gpt-4-turbo-preview"
+    openai_model: str = "gpt-5-mini"
     openai_temperature: float = 0.7
     openai_timeout: float = 5.0
 
@@ -51,7 +51,11 @@ class Settings(BaseSettings):
         "resolve_medication_id.json",
         "get_medication_info.json",
         "check_stock.json",
-        "search_by_ingredient.json"
+        "search_by_ingredient.json",
+        "get_prescription_status.json",
+        "get_handling_warnings.json",
+        "find_nearest_pharmacy.json",
+        "redirect_to_healthcare_professional.json"
     ]
 
     @field_validator('allowed_origins', mode='before')
