@@ -1,0 +1,102 @@
+[
+  {
+    "id": "RX_001",
+    "patient_id": "USER001",
+    "med_id": "MED002",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 30,
+    "pickup_location": "Central Pharmacy",
+    "notes": "Take with food",
+    "status": "ready"
+  },
+  {
+    "id": "RX_002",
+    "patient_id": "USER002",
+    "med_id": "MED005",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 60,
+    "pickup_location": "Ramat Aviv Pharmacy",
+    "notes": "Take before breakfast",
+    "status": "pending"
+  },
+  {
+    "id": "RX_003",
+    "patient_id": "USER003",
+    "med_id": "MED004",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 90,
+    "pickup_location": "Haifa Port Pharmacy",
+    "notes": "Complete full course",
+    "status": "ready"
+  },
+  {
+    "id": "RX_004",
+    "patient_id": "USER004",
+    "med_id": "MED001",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 20,
+    "pickup_location": "Jerusalem Medical Pharmacy",
+    "notes": "Use as needed",
+    "status": "expired"
+  },
+  {
+    "id": "RX_005",
+    "patient_id": "USER005",
+    "med_id": "MED003",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 45,
+    "pickup_location": "Be'er Sheva South Pharmacy",
+    "notes": "Do not exceed daily max",
+    "status": "ready"
+  },
+  {
+    "id": "RX_006",
+    "patient_id": "USER006",
+    "med_id": "MED002",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 30,
+    "pickup_location": "Central Pharmacy",
+    "notes": "Take with food",
+    "status": "pending"
+  },
+  {
+    "id": "RX_007",
+    "patient_id": "USER007",
+    "med_id": "MED005",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 30,
+    "pickup_location": "Ramat Aviv Pharmacy",
+    "notes": "Take before breakfast",
+    "status": "expired"
+  },
+  {
+    "id": "RX_008",
+    "patient_id": "USER008",
+    "med_id": "MED001",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 30,
+    "pickup_location": "Haifa Port Pharmacy",
+    "notes": "Use as needed",
+    "status": "pending"
+  },
+  {
+    "id": "RX_009",
+    "patient_id": "USER009",
+    "med_id": "MED003",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 30,
+    "pickup_location": "Jerusalem Medical Pharmacy",
+    "notes": "Do not exceed daily max",
+    "status": "ready"
+  },
+  {
+    "id": "RX_010",
+    "patient_id": "USER010",
+    "med_id": "MED004",
+    "prescriber_name": "Licensed prescriber",
+    "quantity": 15,
+    "pickup_location": "Be'er Sheva South Pharmacy",
+    "notes": "Complete full course",
+    "status": "expired"
+  }
+]

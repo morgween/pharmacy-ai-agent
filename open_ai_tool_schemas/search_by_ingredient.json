@@ -13,10 +13,10 @@
         "lang": {
           "type": "string",
           "enum": ["en", "he", "ru", "ar"],
-          "description": "Language of the ingredient name provided by the user."
+          "description": "Language of the ingredient name provided by the user (optional; auto-detected if omitted)."
         }
       },
-      "required": ["ingredient", "lang"],
+      "required": ["ingredient"],
       "additionalProperties": false
     }
   }

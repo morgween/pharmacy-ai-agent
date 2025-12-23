@@ -7,9 +7,9 @@
       "type": "object",
       "properties": {
         "name": { "type": "string", "description": "Medication name as written by the user." },
-        "lang": { "type": "string", "enum": ["en", "he", "ru", "ar"], "description": "Language of the provided name." }
+        "lang": { "type": "string", "enum": ["en", "he", "ru", "ar"], "description": "Language of the provided name (optional; auto-detected if omitted)." }
       },
-      "required": ["name", "lang"],
+      "required": ["name"],
       "additionalProperties": false
     }
   }

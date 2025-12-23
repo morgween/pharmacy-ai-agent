@@ -1,10 +1,13 @@
 """medication data source implementation using sqlalchemy orm"""
+import asyncio
 import json
 from typing import List, Dict, Optional
 from sqlalchemy import create_engine, Column, String, Float, Boolean, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from backend.config import settings
-from backend.data_sources.base import MedicationDataSource
+from backend.data_sources.base import MedicationDataSource, normalize_text, levenshtein_distance
+from backend.constants import SUPPORTED_LANGUAGES
+from backend.utils.db_context import get_db_session
 
 Base = declarative_base()
 
@@ -51,7 +54,11 @@ class MedicationsDB(MedicationDataSource):
         db_path = db_path or settings.medications_db_path
 
         # create engine and session
-        self.engine = create_engine(f"sqlite:///{db_path}")
+        self.engine = create_engine(
+            f"sqlite:///{db_path}",
+            pool_pre_ping=True,
+            pool_recycle=3600
+        )
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
 
@@ -62,45 +69,47 @@ class MedicationsDB(MedicationDataSource):
         """
         initialize database and load data if needed
 
-        populates from medications.json if database is empty
+        populates from medications.json if database is empty or out of sync
         """
-        session = self.Session()
-        try:
-            # check if database is empty
-            count = session.query(Medication).count()
+        with get_db_session(self.Session, commit=True) as session:
+            with open(settings.medications_json_path, 'r', encoding='utf-8') as f:
+                medications = json.load(f)
 
-            if count == 0:
-                # populate from medications.json
-                with open(settings.medications_json_path, 'r', encoding='utf-8') as f:
-                    medications = json.load(f)
+            expected_ids = {med.get("id") for med in medications if med.get("id")}
+            existing_ids = {
+                row[0] for row in session.query(Medication.id).all()
+            }
 
-                for med_data in medications:
-                    # create medication record
-                    med = Medication(
-                        id=med_data['id'],
-                        dosage=med_data['dosage'],
-                        prescription_required=med_data['prescription_required'],
-                        price_usd=med_data['price_usd']
+            if existing_ids and existing_ids == expected_ids:
+                return
+
+            if existing_ids:
+                session.query(MedicationI18n).delete()
+                session.query(Medication).delete()
+
+            for med_data in medications:
+                # create medication record
+                med = Medication(
+                    id=med_data['id'],
+                    dosage=med_data['dosage'],
+                    prescription_required=med_data['prescription_required'],
+                    price_usd=med_data['price_usd']
+                )
+
+                # create translations for all languages
+                for lang in SUPPORTED_LANGUAGES:
+                    i18n = MedicationI18n(
+                        medication_id=med_data['id'],
+                        language=lang,
+                        name=med_data['names'].get(lang, ''),
+                        active_ingredient=med_data['active_ingredient'].get(lang, ''),
+                        usage_instructions=med_data['usage_instructions'].get(lang, ''),
+                        warnings=med_data['warnings'].get(lang, ''),
+                        category=med_data['category'].get(lang, '')
                     )
+                    med.translations.append(i18n)
 
-                    # create translations for all languages
-                    for lang in ['en', 'he', 'ru', 'ar']:
-                        i18n = MedicationI18n(
-                            medication_id=med_data['id'],
-                            language=lang,
-                            name=med_data['names'].get(lang, ''),
-                            active_ingredient=med_data['active_ingredient'].get(lang, ''),
-                            usage_instructions=med_data['usage_instructions'].get(lang, ''),
-                            warnings=med_data['warnings'].get(lang, ''),
-                            category=med_data['category'].get(lang, '')
-                        )
-                        med.translations.append(i18n)
-
-                    session.add(med)
-
-                session.commit()
-        finally:
-            session.close()
+                session.add(med)
 
     def _model_to_dict(self, medication: Medication) -> Dict:
         """
@@ -148,8 +157,51 @@ class MedicationsDB(MedicationDataSource):
         returns:
             list of medication objects matching the ingredient
         """
-        session = self.Session()
-        try:
+        return await asyncio.to_thread(
+            self._search_by_ingredient_sync,
+            ingredient,
+            language
+        )
+
+    async def get_medication_by_name(
+        self,
+        name: str,
+        language: str = 'en'
+    ) -> Optional[Dict]:
+        """
+        get medication by name using case-insensitive match
+
+        args:
+            name: medication name to search for
+            language: language code (en, he, ru, ar)
+
+        returns:
+            medication object if found, none otherwise
+        """
+        return await asyncio.to_thread(
+            self._get_medication_by_name_sync,
+            name,
+            language
+        )
+
+    async def get_medication_by_id(self, med_id: str) -> Optional[Dict]:
+        """
+        get medication by id
+
+        args:
+            med_id: medication id
+
+        returns:
+            medication object if found, none otherwise
+        """
+        return await asyncio.to_thread(self._get_medication_by_id_sync, med_id)
+
+    def _search_by_ingredient_sync(
+        self,
+        ingredient: str,
+        language: str
+    ) -> List[Dict]:
+        with get_db_session(self.Session) as session:
             ingredient_lower = ingredient.lower().strip()
 
             # query medications with matching ingredient
@@ -173,26 +225,13 @@ class MedicationsDB(MedicationDataSource):
                         break
 
             return results
-        finally:
-            session.close()
 
-    async def get_medication_by_name(
+    def _get_medication_by_name_sync(
         self,
         name: str,
-        language: str = 'en'
+        language: str
     ) -> Optional[Dict]:
-        """
-        get medication by name using case-insensitive match
-
-        args:
-            name: medication name to search for
-            language: language code (en, he, ru, ar)
-
-        returns:
-            medication object if found, none otherwise
-        """
-        session = self.Session()
-        try:
+        with get_db_session(self.Session) as session:
             name_lower = name.lower().strip()
 
             # query medication with matching name
@@ -213,9 +252,69 @@ class MedicationsDB(MedicationDataSource):
                         trans.name.lower().strip() == name_lower):
                         return self._model_to_dict(medication)
 
+            normalized_target = normalize_text(name)
+            if not normalized_target:
+                return None
+
+            translations = (
+                session.query(MedicationI18n)
+                .filter(MedicationI18n.language == language)
+                .all()
+            )
+
+            candidates = []
+            for trans in translations:
+                if not trans.name:
+                    continue
+                distance = levenshtein_distance(
+                    normalized_target,
+                    normalize_text(trans.name),
+                    max_distance=2
+                )
+                if distance <= 2:
+                    candidates.append((distance, trans.medication_id, trans.name))
+
+            if not candidates:
+                return None
+
+            best_by_id = {}
+            for distance, med_id, med_name in candidates:
+                current = best_by_id.get(med_id)
+                if current is None or distance < current["distance"]:
+                    best_by_id[med_id] = {
+                        "distance": distance,
+                        "name": med_name
+                    }
+
+            if len(best_by_id) > 1:
+                return {
+                    "_ambiguous": True,
+                    "candidates": [
+                        {
+                            "id": med_id,
+                            "name": entry["name"],
+                            "distance": entry["distance"]
+                        }
+                        for med_id, entry in best_by_id.items()
+                    ]
+                }
+
+            med_id = next(iter(best_by_id))
+            medication = session.query(Medication).filter(Medication.id == med_id).first()
+            if medication:
+                return self._model_to_dict(medication)
+
             return None
-        finally:
-            session.close()
+
+    def _get_medication_by_id_sync(self, med_id: str) -> Optional[Dict]:
+        if not med_id:
+            return None
+
+        with get_db_session(self.Session) as session:
+            medication = session.query(Medication).filter(Medication.id == med_id).first()
+            if medication:
+                return self._model_to_dict(medication)
+            return None
 
     def get_all_medications(self, language: str = 'en') -> List[Dict]:
         """
@@ -227,8 +326,7 @@ class MedicationsDB(MedicationDataSource):
         returns:
             list of simplified medication objects
         """
-        session = self.Session()
-        try:
+        with get_db_session(self.Session) as session:
             medications = session.query(Medication).all()
 
             simplified = []
@@ -254,5 +352,3 @@ class MedicationsDB(MedicationDataSource):
                     })
 
             return simplified
-        finally:
-            session.close()

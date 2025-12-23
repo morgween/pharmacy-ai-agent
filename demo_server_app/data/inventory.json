@@ -18,45 +18,5 @@
   "MED005": {
     "stock_quantity": 140,
     "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED006": {
-    "stock_quantity": 120,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED007": {
-    "stock_quantity": 85,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED008": {
-    "stock_quantity": 200,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED009": {
-    "stock_quantity": 110,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED010": {
-    "stock_quantity": 75,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED011": {
-    "stock_quantity": 300,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED012": {
-    "stock_quantity": 220,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED013": {
-    "stock_quantity": 0,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED014": {
-    "stock_quantity": 90,
-    "updated_at": "2025-12-21T10:00:00Z"
-  },
-  "MED015": {
-    "stock_quantity": 60,
-    "updated_at": "2025-12-21T10:00:00Z"
   }
 }

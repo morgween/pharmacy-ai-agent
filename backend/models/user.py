@@ -4,7 +4,11 @@ from typing import List, Optional
 from sqlalchemy import create_engine, Column, String, Integer, Float, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import bcrypt
+import json
 from backend.config import settings
+from backend.constants import PRESCRIPTION_ACTIVE_STATUSES
+from backend.utils.db_context import get_db_session
+from backend.repositories.user_repository import UserRepository
 
 Base = declarative_base()
 
@@ -115,7 +119,7 @@ class Prescription(Base):
     pickup_location = Column(String, nullable=False)
     notes = Column(Text)
 
-    # status: pending, ready, picked_up, cancelled
+    # status: pending, ready, expired
     status = Column(String, default="pending")
 
     # timestamps
@@ -142,39 +146,26 @@ class UserDatabase:
             db_path = settings.user_db_path
 
         # create engine and session
-        self.engine = create_engine(f"sqlite:///{db_path}")
+        self.engine = create_engine(
+            f"sqlite:///{db_path}",
+            pool_pre_ping=True,
+            pool_recycle=3600
+        )
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
+        self._repo = UserRepository()
 
         # initialize with demo users if empty
         self._init_demo_users()
 
     def _init_demo_users(self):
         """create demo users if database is empty"""
-        session = self.Session()
-        try:
-            count = session.query(User).count()
+        with get_db_session(self.Session, commit=True) as session:
+            count = self._repo.count_users(session)
 
             if count == 0:
-                demo_users = [
-                    # english users
-                    {"id": "USER001", "email": "marilyn_monroe@example.com", "name": "Marilyn Monroe", "password": "demo123", "preferred_language": "en"},
-                    {"id": "USER002", "email": "jim_carrey@example.com", "name": "Jim Carrey", "password": "demo123", "preferred_language": "en"},
-
-                    # hebrew users
-                    {"id": "USER003", "email": "gal_gadot@example.com", "name": "Gal Gadot", "password": "demo123", "preferred_language": "he"},
-                    {"id": "USER004", "email": "lior_raz@example.com", "name": "Lior Raz", "password": "demo123", "preferred_language": "he"},
-                    {"id": "USER005", "email": "adi_himelbloy@example.com", "name": "Adi Himelbloy", "password": "demo123", "preferred_language": "he"},
-
-                    # russian users
-                    {"id": "USER006", "email": "yulia_snigir@example.com", "name": "Yulia Snigir", "password": "demo123", "preferred_language": "ru"},
-                    {"id": "USER007", "email": "alla_pugacheva@example.com", "name": "Alla Pugacheva", "password": "demo123", "preferred_language": "ru"},
-                    {"id": "USER008", "email": "sergey_pakhomov@example.com", "name": "Sergey Pakhomov", "password": "demo123", "preferred_language": "ru"},
-
-                    # arabic users
-                    {"id": "USER009", "email": "adel_emam@example.com", "name": "Adel Emam", "password": "demo123", "preferred_language": "ar"},
-                    {"id": "USER010", "email": "rami_malek@example.com", "name": "Rami Malek", "password": "demo123", "preferred_language": "ar"},
-                ]
+                with open(settings.users_json_path, 'r', encoding='utf-8') as f:
+                    demo_users = json.load(f)
 
                 for user_data in demo_users:
                     user = User(
@@ -188,14 +179,10 @@ class UserDatabase:
                     # create usage stats
                     usage = UserUsage(user_id=user.id)
 
-                    session.add(user)
-                    session.add(usage)
+                    self._repo.add_user(session, user)
+                    self._repo.add_usage(session, usage)
 
-                session.commit()
-                print(f"✅ created {len(demo_users)} demo users (password: demo123)")
-
-        finally:
-            session.close()
+                print(f"created {len(demo_users)} demo users (password: demo123)")
 
     def authenticate(self, email: str, password: str) -> Optional[User]:
         """
@@ -208,14 +195,13 @@ class UserDatabase:
         returns:
             user object if authenticated, none otherwise
         """
-        session = self.Session()
-        try:
-            user = session.query(User).filter(User.email == email, User.is_active == True).first()
+        with get_db_session(self.Session, commit=True) as session:
+            user = self._repo.get_user_by_email(session, email, active_only=True)
 
             if user and user.check_password(password):
                 # update last login
                 user.last_login = datetime.utcnow()
-                session.commit()
+                session.flush()
                 # refresh to load all attributes before detaching
                 session.refresh(user)
                 # detach from session
@@ -223,8 +209,6 @@ class UserDatabase:
                 return user
 
             return None
-        finally:
-            session.close()
 
     def get_user(self, user_id: str) -> Optional[User]:
         """
@@ -236,15 +220,12 @@ class UserDatabase:
         returns:
             user object or none
         """
-        session = self.Session()
-        try:
-            user = session.query(User).filter(User.id == user_id).first()
+        with get_db_session(self.Session) as session:
+            user = self._repo.get_user_by_id(session, user_id)
             if user:
                 session.refresh(user)
                 session.expunge(user)
             return user
-        finally:
-            session.close()
 
     def create_conversation(self, user_id: str, language: str = "en") -> str:
         """
@@ -257,8 +238,7 @@ class UserDatabase:
         returns:
             conversation id
         """
-        session = self.Session()
-        try:
+        with get_db_session(self.Session, commit=True) as session:
             import uuid
             conversation_id = f"CONV_{uuid.uuid4().hex[:12].upper()}"
 
@@ -268,18 +248,15 @@ class UserDatabase:
                 language=language
             )
 
-            session.add(conversation)
+            self._repo.add_conversation(session, conversation)
+            self._repo.update_usage(
+                session,
+                user_id,
+                conversations=1,
+                last_activity=datetime.utcnow()
+            )
 
-            # update user usage
-            usage = session.query(UserUsage).filter(UserUsage.user_id == user_id).first()
-            if usage:
-                usage.total_conversations += 1
-                usage.last_activity = datetime.utcnow()
-
-            session.commit()
             return conversation_id
-        finally:
-            session.close()
 
     def add_message(self, conversation_id: str, role: str, content: str, tool_calls: Optional[str] = None, tokens: int = 0):
         """
@@ -292,8 +269,7 @@ class UserDatabase:
             tool_calls: json string of tool calls (optional)
             tokens: tokens used for this message
         """
-        session = self.Session()
-        try:
+        with get_db_session(self.Session, commit=True) as session:
             message = Message(
                 conversation_id=conversation_id,
                 role=role,
@@ -302,23 +278,21 @@ class UserDatabase:
                 tokens_used=tokens
             )
 
-            session.add(message)
+            self._repo.add_message(session, message)
 
             # update conversation
-            conversation = session.query(Conversation).filter(Conversation.id == conversation_id).first()
+            conversation = self._repo.get_conversation(session, conversation_id)
             if conversation:
                 conversation.updated_at = datetime.utcnow()
 
                 # update user usage
-                usage = session.query(UserUsage).filter(UserUsage.user_id == conversation.user_id).first()
-                if usage:
-                    usage.total_messages += 1
-                    usage.total_tokens += tokens
-                    usage.last_activity = datetime.utcnow()
-
-            session.commit()
-        finally:
-            session.close()
+                self._repo.update_usage(
+                    session,
+                    conversation.user_id,
+                    messages=1,
+                    tokens=tokens,
+                    last_activity=datetime.utcnow()
+                )
 
     def track_tool_call(self, user_id: str, tool_name: str):
         """
@@ -328,25 +302,15 @@ class UserDatabase:
             user_id: user identifier
             tool_name: name of tool called
         """
-        session = self.Session()
-        try:
-            usage = session.query(UserUsage).filter(UserUsage.user_id == user_id).first()
-            if usage:
-                usage.total_tool_calls += 1
-
-                # track specific tool
-                if tool_name == "resolve_medication_id":
-                    usage.resolve_medication_calls += 1
-                elif tool_name == "get_medication_info":
-                    usage.get_info_calls += 1
-                elif tool_name == "search_by_ingredient":
-                    usage.search_ingredient_calls += 1
-                elif tool_name == "check_stock":
-                    usage.check_stock_calls += 1
-
-                session.commit()
-        finally:
-            session.close()
+        with get_db_session(self.Session, commit=True) as session:
+            increments = {
+                "tool_calls": 1,
+                "resolve_medication": 1 if tool_name == "resolve_medication_id" else 0,
+                "get_info": 1 if tool_name == "get_medication_info" else 0,
+                "search_ingredient": 1 if tool_name == "search_by_ingredient" else 0,
+                "check_stock": 1 if tool_name == "check_stock" else 0
+            }
+            self._repo.update_usage(session, user_id, **increments)
 
     def get_conversation_history(self, conversation_id: str) -> List[dict]:
         """
@@ -358,9 +322,8 @@ class UserDatabase:
         returns:
             list of message dictionaries
         """
-        session = self.Session()
-        try:
-            messages = session.query(Message).filter(Message.conversation_id == conversation_id).order_by(Message.created_at).all()
+        with get_db_session(self.Session) as session:
+            messages = self._repo.list_messages(session, conversation_id)
 
             history = []
             for msg in messages:
@@ -373,8 +336,6 @@ class UserDatabase:
                 })
 
             return history
-        finally:
-            session.close()
 
     def get_user_usage(self, user_id: str) -> Optional[dict]:
         """
@@ -386,9 +347,8 @@ class UserDatabase:
         returns:
             usage statistics dictionary
         """
-        session = self.Session()
-        try:
-            usage = session.query(UserUsage).filter(UserUsage.user_id == user_id).first()
+        with get_db_session(self.Session) as session:
+            usage = self._repo.get_usage(session, user_id)
 
             if usage:
                 return {
@@ -406,49 +366,47 @@ class UserDatabase:
                 }
 
             return None
-        finally:
-            session.close()
 
-    def get_prescription_status(self, prescription_id: str) -> Optional[dict]:
+    def get_user_prescriptions(self, user_id: str, active_only: bool = True) -> List[dict]:
         """
-        get prescription status and details
+        get prescriptions for a user
 
         args:
-            prescription_id: prescription identifier
+            user_id: user identifier
+            active_only: when true, return pending/ready only
 
         returns:
-            prescription details dict or none
+            list of prescription dicts
         """
         import logging
         logger = logging.getLogger(__name__)
-        session = self.Session()
 
         try:
-            prescription = session.query(Prescription).filter(
-                Prescription.id == prescription_id
-            ).first()
+            with get_db_session(self.Session) as session:
+                prescriptions = self._repo.list_prescriptions(
+                    session,
+                    user_id,
+                    active_only,
+                    PRESCRIPTION_ACTIVE_STATUSES
+                )
+                results = []
+                for prescription in prescriptions:
+                    results.append({
+                        "prescription_id": prescription.id,
+                        "patient_id": prescription.patient_id,
+                        "med_id": prescription.med_id,
+                        "prescriber_name": prescription.prescriber_name,
+                        "quantity": prescription.quantity,
+                        "pickup_location": prescription.pickup_location,
+                        "status": prescription.status,
+                        "notes": prescription.notes,
+                        "created_at": prescription.created_at.isoformat() if prescription.created_at else None,
+                        "updated_at": prescription.updated_at.isoformat() if prescription.updated_at else None,
+                        "ready_at": prescription.ready_at.isoformat() if prescription.ready_at else None,
+                        "picked_up_at": prescription.picked_up_at.isoformat() if prescription.picked_up_at else None
+                    })
 
-            if not prescription:
-                logger.warning(f"prescription not found: {prescription_id}")
-                return None
-
-            return {
-                "prescription_id": prescription.id,
-                "patient_id": prescription.patient_id,
-                "med_id": prescription.med_id,
-                "prescriber_name": prescription.prescriber_name,
-                "quantity": prescription.quantity,
-                "pickup_location": prescription.pickup_location,
-                "status": prescription.status,
-                "notes": prescription.notes,
-                "created_at": prescription.created_at.isoformat() if prescription.created_at else None,
-                "updated_at": prescription.updated_at.isoformat() if prescription.updated_at else None,
-                "ready_at": prescription.ready_at.isoformat() if prescription.ready_at else None,
-                "picked_up_at": prescription.picked_up_at.isoformat() if prescription.picked_up_at else None
-            }
-
+                return results
         except Exception as e:
-            logger.error(f"error getting prescription status: {e}", exc_info=True)
-            return None
-        finally:
-            session.close()
+            logger.error(f"error getting prescriptions for user {user_id}: {e}", exc_info=True)
+            return []

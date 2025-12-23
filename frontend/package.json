@@ -1,0 +1,33 @@
+{
+  "name": "pharmacy-ai-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@ai-sdk/react": "3.0.1",
+    "ai": "6.0.1",
+    "eventsource-parser": "1.1.2",
+    "next": "14.2.35",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.4.2",
+    "@testing-library/react": "14.2.1",
+    "@types/jest": "29.5.12",
+    "@types/node": "20.12.7",
+    "@types/react": "18.2.66",
+    "@types/react-dom": "18.2.22",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.35",
+    "jest": "29.7.0",
+    "jest-environment-jsdom": "29.7.0",
+    "typescript": "5.4.5"
+  }
+}

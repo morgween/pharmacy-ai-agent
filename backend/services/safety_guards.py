@@ -2,24 +2,26 @@
 import re
 from typing import List, Optional, Tuple
 
+from backend.i18n.messages import Messages
+
 
 class SafetyGuard:
     """Detects potential medical advice, diagnosis, promotional language, or upselling."""
 
     def __init__(self) -> None:
-        # Medical advice patterns - designed to catch personal advice, not label information
-        # ALLOWED: "The recommended dose is 500mg" (label info)
-        # BLOCKED: "I recommend you take 500mg" (personal advice)
+        # medical advice patterns - designed to catch personal advice, not label information
+        # allowed: "the recommended dose is 500mg" (label info)
+        # blocked: "i recommend you take 500mg" (personal advice)
         self._medical_patterns: List[Tuple[re.Pattern[str], str]] = [
             (re.compile(r"\bdiagnos(e|is)\b", re.IGNORECASE), "diagnosis"),
             (re.compile(r"\b(should (I|you) take|you should take|I should take)\b", re.IGNORECASE), "direct advice"),
-            # Only catch personal dose recommendations, not label info
+            # only catch personal dose recommendations, not label info
             (re.compile(r"\bI recommend( a| your)? dose\b", re.IGNORECASE), "dose recommendation"),
             (re.compile(r"\bincrease (your|the) dose\b", re.IGNORECASE), "dose adjustment"),
             (re.compile(r"\bdouble (your|the) dose\b", re.IGNORECASE), "dose adjustment"),
-            # Only catch drug interaction ADVICE, not general info
-            (re.compile(r"\b(avoid|don't take).*(interaction|with)\b", re.IGNORECASE), "drug interaction advice"),
-            # These patterns catch personal suitability advice
+            # only catch drug interaction advice, not general info or label warnings
+            (re.compile(r"\b(avoid|don't take).*(interaction)\b", re.IGNORECASE), "drug interaction advice"),
+            # these patterns catch personal suitability advice
             (re.compile(r"\b(you can|you may|it's safe to)\s+take\b.*\bpregnan(t|cy)\b", re.IGNORECASE), "pregnancy advice"),
             (re.compile(r"\bpregnan(t|cy)\b.*(you can|you may|it's safe to)\s+take\b", re.IGNORECASE), "pregnancy advice"),
             (re.compile(r"\b(you can|you may|it's safe to)\s+take\b.*\bbreastfeed(ing)?\b", re.IGNORECASE), "breastfeeding advice"),
@@ -31,9 +33,22 @@ class SafetyGuard:
             (re.compile(r"\bI recommend( this| that| the)? (medication|medicine)\b", re.IGNORECASE), "medication recommendation"),
             (re.compile(r"\byou (should|need to|must) (start|stop|continue)\b", re.IGNORECASE), "treatment advice"),
             (re.compile(r"\byou (should|can|may) (skip|miss) (a |your )?dose\b", re.IGNORECASE), "dose modification advice"),
+            # hebrew direct advice
+            (re.compile(r"(?:???|??)\s*???\s*(?:????|?????|????|?????|????)\s*(?:????|?????)", re.IGNORECASE), "direct advice"),
+            (re.compile(r"(?:???|??)\s*(?:????|?????|????)\s*(?:????|?????)", re.IGNORECASE), "direct advice"),
+            (re.compile(r"(?:?????|????)\s*(?:????|?????)", re.IGNORECASE), "medication recommendation"),
+            # russian direct advice
+            (re.compile(r"(????? ??|?????|?????|???????)\s*(?????????|????????????)", re.IGNORECASE), "direct advice"),
+            (re.compile(r"(????????? ??|?????????)\s*(?????????|????????????)", re.IGNORECASE), "suitability judgment"),
+            (re.compile(r"(??????????|???????)\s*(?????????|????????????)", re.IGNORECASE), "medication recommendation"),
+            # arabic direct advice
+            (re.compile(r"(?? ??????|??????|?? ????|????)\s*(?????|???????)", re.IGNORECASE), "direct advice"),
+            (re.compile(r"(???|?????)\s*(?:??\s*)?(?????|???????)", re.IGNORECASE), "treatment advice"),
+            (re.compile(r"(???|????)\s*(?:??\s*)?(?????|???????)", re.IGNORECASE), "suitability judgment"),
+            (re.compile(r"(????|????)\s*(?:?)?(?????|???????)", re.IGNORECASE), "medication recommendation"),
         ]
 
-        # Upselling and promotional patterns
+        # upselling and promotional patterns
         self._upsell_patterns: List[Tuple[re.Pattern[str], str]] = [
             (re.compile(r"\byou should (buy|purchase|get)\b", re.IGNORECASE), "purchase encouragement"),
             (re.compile(r"\bI recommend (buying|purchasing|getting)\b", re.IGNORECASE), "purchase recommendation"),
@@ -45,21 +60,41 @@ class SafetyGuard:
             (re.compile(r"\byou('ll| will) (love|like|enjoy)\b", re.IGNORECASE), "promotional endorsement"),
         ]
 
-        # Combine all patterns
+        # combine all patterns
         self._patterns = self._medical_patterns + self._upsell_patterns
+        self._refusal_patterns: List[re.Pattern[str]] = [
+            re.compile(r"\b(i can'?t|i cannot) provide medical advice\b", re.IGNORECASE),
+            re.compile(r"\bplease consult (a|your) (doctor|pharmacist)\b", re.IGNORECASE),
+            re.compile(r"\bconsult (a|your) (doctor|pharmacist)\b", re.IGNORECASE),
+            re.compile(r"??? ?? ????(?)? ???? ????? ?????", re.IGNORECASE),
+            re.compile(r"???/? ?????|??? ?????|??? ?????", re.IGNORECASE),
+            re.compile(r"? ?? ???? ?????? ??????????? ??????", re.IGNORECASE),
+            re.compile(r"?????????? ? ?????|??????????????????? ? ??????", re.IGNORECASE),
+            re.compile(r"?? ?????? ????? ????? ????", re.IGNORECASE),
+            re.compile(r"???? ??????? ????|????? ????", re.IGNORECASE),
+        ]
 
     def check_text(self, text: str) -> Optional[str]:
         """Return the violation reason if any prohibited pattern is detected."""
+        if self._is_refusal(text):
+            return None
         for regex, reason in self._patterns:
             if regex.search(text):
                 return reason
         return None
 
+    def _is_refusal(self, text: str) -> bool:
+        """Return True when the text is a refusal that should not be blocked."""
+        if not text:
+            return False
+        for regex in self._refusal_patterns:
+            if regex.search(text):
+                return True
+        return False
+
     @staticmethod
-    def refusal_message(reason: str) -> str:
-        """Standard refusal message for safety violations."""
-        return (
-            "I can't provide medical advice, diagnosis, or recommendations. "
-            "Please consult a licensed pharmacist or doctor. "
-            f"(request blocked: {reason})."
-        )
+    def refusal_message(reason: str, language: str = "en") -> str:
+        """standard refusal message for safety violations."""
+        base = Messages.get("SAFETY", "refusal_base", language)
+        tail = Messages.get("SAFETY", "refusal_suffix", language, reason=reason)
+        return f"{base} {tail}"

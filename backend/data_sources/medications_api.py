@@ -2,7 +2,7 @@
 import json
 from typing import List, Dict, Optional
 from backend.config import settings
-from backend.data_sources.base import MedicationDataSource
+from backend.data_sources.base import MedicationDataSource, normalize_text, levenshtein_distance
 
 
 class MedicationsAPI(MedicationDataSource):
@@ -73,6 +73,67 @@ class MedicationsAPI(MedicationDataSource):
         for med in self.medications:
             med_name = med.get('names', {}).get(language, '')
             if med_name.lower().strip() == name_lower:
+                return med
+
+        normalized_target = normalize_text(name)
+        if not normalized_target:
+            return None
+
+        candidates = []
+        for med in self.medications:
+            med_name = med.get('names', {}).get(language, '')
+            if not med_name:
+                continue
+            distance = levenshtein_distance(
+                normalized_target,
+                normalize_text(med_name),
+                max_distance=2
+            )
+            if distance <= 2:
+                candidates.append((distance, med, med_name))
+
+        if not candidates:
+            return None
+
+        best_by_id = {}
+        for distance, med, med_name in candidates:
+            med_id = med.get('id')
+            if not med_id:
+                continue
+            current = best_by_id.get(med_id)
+            if current is None or distance < current["distance"]:
+                best_by_id[med_id] = {"distance": distance, "name": med_name, "med": med}
+
+        if len(best_by_id) > 1:
+            return {
+                "_ambiguous": True,
+                "candidates": [
+                    {
+                        "id": entry["med"].get("id"),
+                        "name": entry["name"],
+                        "distance": entry["distance"]
+                    }
+                    for entry in best_by_id.values()
+                ]
+            }
+
+        return next(iter(best_by_id.values()))["med"]
+
+    async def get_medication_by_id(self, med_id: str) -> Optional[Dict]:
+        """
+        get medication by id
+
+        args:
+            med_id: medication id to search for
+
+        returns:
+            medication object if found, none otherwise
+        """
+        if not med_id:
+            return None
+
+        for med in self.medications:
+            if med.get('id') == med_id:
                 return med
 
         return None

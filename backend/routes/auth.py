@@ -1,4 +1,5 @@
 """authentication endpoints for user management"""
+import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -43,7 +44,11 @@ async def login(request: LoginRequest):
     returns:
         user info with session token
     """
-    user = user_db.authenticate(request.email, request.password)
+    user = await asyncio.to_thread(
+        user_db.authenticate,
+        request.email,
+        request.password
+    )
 
     if not user:
         raise HTTPException(
@@ -71,12 +76,12 @@ async def get_user_stats(user_id: str):
     returns:
         user info with usage statistics
     """
-    user = user_db.get_user(user_id)
+    user = await asyncio.to_thread(user_db.get_user, user_id)
 
     if not user:
         raise HTTPException(status_code=404, detail="user not found")
 
-    usage = user_db.get_user_usage(user_id) or {}
+    usage = await asyncio.to_thread(user_db.get_user_usage, user_id) or {}
 
     return UserStatsResponse(
         user_id=user.id,
@@ -85,28 +90,3 @@ async def get_user_stats(user_id: str):
         preferred_language=user.preferred_language,
         usage=usage
     )
-
-
-@router.get("/demo-users")
-async def get_demo_users():
-    """
-    get list of demo user emails for testing
-
-    returns:
-        list of demo user credentials
-    """
-    return {
-        "demo_users": [
-            {"email": "sarah.cohen@example.com", "password": "demo123", "language": "en", "name": "Sarah Cohen"},
-            {"email": "david.miller@example.com", "password": "demo123", "language": "en", "name": "David Miller"},
-            {"email": "emma.taylor@example.com", "password": "demo123", "language": "en", "name": "Emma Taylor"},
-            {"email": "rachel.levi@example.com", "password": "demo123", "language": "he", "name": "Rachel Levi"},
-            {"email": "yael.rosenberg@example.com", "password": "demo123", "language": "he", "name": "Yael Rosenberg"},
-            {"email": "dmitry.ivanov@example.com", "password": "demo123", "language": "ru", "name": "Dmitry Ivanov"},
-            {"email": "anastasia.petrova@example.com", "password": "demo123", "language": "ru", "name": "Anastasia Petrova"},
-            {"email": "alexander.volkov@example.com", "password": "demo123", "language": "ru", "name": "Alexander Volkov"},
-            {"email": "omar.hassan@example.com", "password": "demo123", "language": "ar", "name": "Omar Hassan"},
-            {"email": "fatima.ali@example.com", "password": "demo123", "language": "ar", "name": "Fatima Ali"},
-        ],
-        "note": "all demo users have password: demo123"
-    }

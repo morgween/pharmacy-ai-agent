@@ -2,7 +2,7 @@
   "type": "function",
   "function": {
     "name": "check_stock",
-    "description": "Check if a medication is currently in stock (returns boolean). Use this to quickly verify availability without needing exact quantities.",
+    "description": "Check if a medication is currently in stock (returns boolean). This is general availability and is not location-specific.",
     "parameters": {
       "type": "object",
       "properties": {
