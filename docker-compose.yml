@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-1.0}
+      OPENAI_TIMEOUT: ${OPENAI_TIMEOUT:-20.0}
+      PORT: 8000
+      FRONTEND_ORIGIN: http://localhost:3000
+      MEDICATION_DATA_SOURCE: ${MEDICATION_DATA_SOURCE:-api}
+      INVENTORY_SERVICE_URL: http://inventory:8001
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - inventory
+    networks:
+      - pharmacy-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  inventory:
+    build:
+      context: ./demo_server_app
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./demo_server_app/data:/app/data
+    networks:
+      - pharmacy-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - pharmacy-network
+
+networks:
+  pharmacy-network:
+    driver: bridge

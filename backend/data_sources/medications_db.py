@@ -8,6 +8,7 @@ from backend.config import settings
 from backend.data_sources.base import MedicationDataSource, normalize_text, levenshtein_distance
 from backend.constants import SUPPORTED_LANGUAGES
 from backend.utils.db_context import get_db_session
+from backend.repositories.medication_repository import MedicationRepository
 
 Base = declarative_base()
 
@@ -61,6 +62,7 @@ class MedicationsDB(MedicationDataSource):
         )
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
+        self._repo = MedicationRepository(Medication, MedicationI18n)
 
         # initialize database if empty
         self._init_db()
@@ -76,16 +78,13 @@ class MedicationsDB(MedicationDataSource):
                 medications = json.load(f)
 
             expected_ids = {med.get("id") for med in medications if med.get("id")}
-            existing_ids = {
-                row[0] for row in session.query(Medication.id).all()
-            }
+            existing_ids = set(self._repo.list_medication_ids(session))
 
             if existing_ids and existing_ids == expected_ids:
                 return
 
             if existing_ids:
-                session.query(MedicationI18n).delete()
-                session.query(Medication).delete()
+                self._repo.clear_all(session)
 
             for med_data in medications:
                 # create medication record
@@ -109,7 +108,7 @@ class MedicationsDB(MedicationDataSource):
                     )
                     med.translations.append(i18n)
 
-                session.add(med)
+                self._repo.add_medication(session, med)
 
     def _model_to_dict(self, medication: Medication) -> Dict:
         """
@@ -201,19 +200,12 @@ class MedicationsDB(MedicationDataSource):
         ingredient: str,
         language: str
     ) -> List[Dict]:
+        """run ingredient search in a sync session for async wrapper."""
         with get_db_session(self.Session) as session:
             ingredient_lower = ingredient.lower().strip()
 
             # query medications with matching ingredient
-            medications = (
-                session.query(Medication)
-                .join(Medication.translations)
-                .filter(
-                    MedicationI18n.language == language,
-                    MedicationI18n.active_ingredient.ilike(ingredient_lower)
-                )
-                .all()
-            )
+            medications = self._repo.find_by_ingredient(session, language, ingredient_lower)
 
             # for exact match, filter in python
             results = []
@@ -231,19 +223,12 @@ class MedicationsDB(MedicationDataSource):
         name: str,
         language: str
     ) -> Optional[Dict]:
+        """resolve a medication by name using sync session queries."""
         with get_db_session(self.Session) as session:
             name_lower = name.lower().strip()
 
             # query medication with matching name
-            medication = (
-                session.query(Medication)
-                .join(Medication.translations)
-                .filter(
-                    MedicationI18n.language == language,
-                    MedicationI18n.name.ilike(name_lower)
-                )
-                .first()
-            )
+            medication = self._repo.find_by_name(session, language, name_lower)
 
             if medication:
                 # verify exact match
@@ -256,11 +241,7 @@ class MedicationsDB(MedicationDataSource):
             if not normalized_target:
                 return None
 
-            translations = (
-                session.query(MedicationI18n)
-                .filter(MedicationI18n.language == language)
-                .all()
-            )
+            translations = self._repo.list_translations(session, language)
 
             candidates = []
             for trans in translations:
@@ -300,18 +281,19 @@ class MedicationsDB(MedicationDataSource):
                 }
 
             med_id = next(iter(best_by_id))
-            medication = session.query(Medication).filter(Medication.id == med_id).first()
+            medication = self._repo.get_by_id(session, med_id)
             if medication:
                 return self._model_to_dict(medication)
 
             return None
 
     def _get_medication_by_id_sync(self, med_id: str) -> Optional[Dict]:
+        """load medication by id using a sync session."""
         if not med_id:
             return None
 
         with get_db_session(self.Session) as session:
-            medication = session.query(Medication).filter(Medication.id == med_id).first()
+            medication = self._repo.get_by_id(session, med_id)
             if medication:
                 return self._model_to_dict(medication)
             return None
@@ -327,7 +309,7 @@ class MedicationsDB(MedicationDataSource):
             list of simplified medication objects
         """
         with get_db_session(self.Session) as session:
-            medications = session.query(Medication).all()
+            medications = self._repo.list_all(session)
 
             simplified = []
             for med in medications:

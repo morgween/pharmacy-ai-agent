@@ -3,9 +3,9 @@ import json
 import logging
 from typing import Any, Dict, List, Tuple
 
-from backend.tools.inference import infer_tool_arguments
-from backend.tools.validators import is_language_tool, has_required_arguments
-from backend.tools.messages import get_missing_param_message
+from backend.tool_framework.inference import infer_tool_arguments
+from backend.tool_framework.validators import is_language_tool, has_required_arguments
+from backend.tool_framework.messages import get_missing_param_message
 
 logger = logging.getLogger(__name__)
 

@@ -153,7 +153,7 @@ class UserDatabase:
         )
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
-        self._repo = UserRepository()
+        self._repo = UserRepository(User, Conversation, Message, UserUsage, Prescription)
 
         # initialize with demo users if empty
         self._init_demo_users()

@@ -2,8 +2,8 @@
 import logging
 from typing import List, Dict, Any, Optional
 from backend.config import settings
-from backend.tools.registry import load_tool_schemas
-from backend.tools.executor import ToolExecutor
+from backend.tool_framework.registry import load_tool_schemas
+from backend.tool_framework.executor import ToolExecutor
 from backend.services.agent_tools import AgentTools
 from backend.services.agent_utils import load_static_json, format_ambiguous_response
 from backend.services.openai_client import OpenAIClient

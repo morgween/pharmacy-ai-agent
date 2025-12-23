@@ -19,13 +19,32 @@ class InventoryTools:
 
     async def check_stock(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """
-        execute check_stock function by calling inventory api with comprehensive error handling
+        tool: check_stock
+        purpose: check if a medication is in stock (boolean availability only).
 
-        args:
-            args: dictionary containing med_id parameter
+        inputs:
+            med_id (str, required): medication id to check.
+            lang (str, optional): language code, defaults to "en".
 
-        returns:
-            boolean availability status (not exact quantity)
+        output schema:
+            success (bool)
+            id (str) on success
+            in_stock (bool) on success
+            message (str, optional) on error
+            error (str, optional) on validation or failure
+
+        error handling:
+            - missing med_id returns success false with error string and localized message.
+            - timeout returns error "timeout" with localized message.
+            - connection failure returns error "service_unavailable".
+            - 404 returns error "not_found".
+            - invalid json returns error "invalid_response".
+            - other http errors return error "http_error".
+            - unexpected exceptions return error "unknown".
+
+        fallback behavior:
+            - no fallback data is returned when the inventory service fails.
+            - error responses are localized using Messages.
         """
         med_id = args.get('med_id')
         lang = args.get('lang', 'en')

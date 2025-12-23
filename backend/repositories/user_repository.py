@@ -1,21 +1,38 @@
 """data access layer for user-related models"""
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List, Optional, Iterable
+from typing import List, Optional, Iterable, Type, TYPE_CHECKING
 from sqlalchemy.orm import Session
 
-from backend.models.user import User, Conversation, Message, UserUsage, Prescription
+if TYPE_CHECKING:
+    from backend.models.user import User, Conversation, Message, UserUsage, Prescription
 
 
 class UserRepository:
     """repository for user database operations"""
 
-    def count_users(self, session: Session) -> int:
-        return session.query(User).count()
+    def __init__(
+        self,
+        user_cls: Type,
+        conversation_cls: Type,
+        message_cls: Type,
+        usage_cls: Type,
+        prescription_cls: Type
+    ) -> None:
+        self._User = user_cls
+        self._Conversation = conversation_cls
+        self._Message = message_cls
+        self._UserUsage = usage_cls
+        self._Prescription = prescription_cls
 
-    def add_user(self, session: Session, user: User) -> None:
+    def count_users(self, session: Session) -> int:
+        return session.query(self._User).count()
+
+    def add_user(self, session: Session, user) -> None:
         session.add(user)
 
-    def add_usage(self, session: Session, usage: UserUsage) -> None:
+    def add_usage(self, session: Session, usage) -> None:
         session.add(usage)
 
     def get_user_by_email(
@@ -24,16 +41,16 @@ class UserRepository:
         email: str,
         active_only: bool = True
     ) -> Optional[User]:
-        query = session.query(User).filter(User.email == email)
+        query = session.query(self._User).filter(self._User.email == email)
         if active_only:
-            query = query.filter(User.is_active == True)
+            query = query.filter(self._User.is_active == True)
         return query.first()
 
     def get_user_by_id(self, session: Session, user_id: str) -> Optional[User]:
-        return session.query(User).filter(User.id == user_id).first()
+        return session.query(self._User).filter(self._User.id == user_id).first()
 
     def get_usage(self, session: Session, user_id: str) -> Optional[UserUsage]:
-        return session.query(UserUsage).filter(UserUsage.user_id == user_id).first()
+        return session.query(self._UserUsage).filter(self._UserUsage.user_id == user_id).first()
 
     def update_usage(
         self,
@@ -72,20 +89,20 @@ class UserRepository:
         if last_activity:
             usage.last_activity = last_activity
 
-    def add_conversation(self, session: Session, conversation: Conversation) -> None:
+    def add_conversation(self, session: Session, conversation) -> None:
         session.add(conversation)
 
     def get_conversation(self, session: Session, conversation_id: str) -> Optional[Conversation]:
-        return session.query(Conversation).filter(Conversation.id == conversation_id).first()
+        return session.query(self._Conversation).filter(self._Conversation.id == conversation_id).first()
 
-    def add_message(self, session: Session, message: Message) -> None:
+    def add_message(self, session: Session, message) -> None:
         session.add(message)
 
     def list_messages(self, session: Session, conversation_id: str) -> List[Message]:
         return (
-            session.query(Message)
-            .filter(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at)
+            session.query(self._Message)
+            .filter(self._Message.conversation_id == conversation_id)
+            .order_by(self._Message.created_at)
             .all()
         )
 
@@ -96,7 +113,7 @@ class UserRepository:
         active_only: bool,
         active_statuses: Iterable[str]
     ) -> List[Prescription]:
-        query = session.query(Prescription).filter(Prescription.patient_id == user_id)
+        query = session.query(self._Prescription).filter(self._Prescription.patient_id == user_id)
         if active_only:
-            query = query.filter(Prescription.status.in_(list(active_statuses)))
+            query = query.filter(self._Prescription.status.in_(list(active_statuses)))
         return query.all()

@@ -5,18 +5,17 @@ import traceback
 from fastapi import APIRouter, HTTPException, Header, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Iterable, Tuple
 import json
 from backend.config import settings
 from backend.services.openai_service import get_openai_service, OpenAIAgentService
 from backend.services.safety_guards import SafetyGuard
 from backend.models.user import UserDatabase
 from backend.middleware.security import pii_masker, audit_logger
-from backend.constants import SUPPORTED_LANGUAGES
 from backend.utils.language import detect_language
-from backend.tools.parser import ToolCallAccumulator
-from backend.tools.stream import StreamProcessor
-from backend.tools.runner import ToolRunner
+from backend.tool_framework.parser import ToolCallAccumulator
+from backend.tool_framework.stream import StreamProcessor
+from backend.tool_framework.runner import ToolRunner
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +38,217 @@ class ChatRequest(BaseModel):
     user_id: Optional[str] = Field(default=None, alias="userId")
 
 
+def _get_client_ip(request: Request) -> str:
+    """return best-effort client ip for audit logging."""
+    if request and request.client:
+        return request.client.host
+    return "unknown"
+
+
+def _resolve_language(chat_request: ChatRequest) -> str:
+    """resolve requested language, falling back to auto-detection."""
+    requested_language = (chat_request.language or "auto").lower()
+    if requested_language != "auto":
+        return requested_language
+
+    last_user_message = next(
+        (msg.content for msg in reversed(chat_request.messages) if msg.role == "user"),
+        ""
+    )
+    return detect_language(last_user_message)
+
+
+def _mask_messages(
+    messages: List[Message],
+    effective_user_id: Optional[str],
+    client_ip: str
+) -> Tuple[List[Dict[str, str]], str]:
+    """mask pii in messages and return masked list plus last user message."""
+    masked_messages = []
+    for msg in messages:
+        masked_content, detections = pii_masker.mask_text(msg.content)
+        if detections:
+            audit_logger.log_pii_access(
+                user_id=effective_user_id or "anonymous",
+                pii_type=",".join([d["type"] for d in detections]),
+                action="mask_outbound",
+                ip_address=client_ip
+            )
+            logger.warning(f"pii detected and masked in user message: {[d['type'] for d in detections]}")
+        masked_messages.append({"role": msg.role, "content": masked_content})
+
+    last_user_message = next(
+        (msg["content"] for msg in reversed(masked_messages) if msg["role"] == "user"),
+        ""
+    )
+    return masked_messages, last_user_message
+
+
+def _summarize_tool_calls(tool_calls: Iterable[Dict[str, object]]) -> List[Dict[str, object]]:
+    """build minimal tool call summaries for logging."""
+    summaries = []
+    for tool_call in tool_calls:
+        function = tool_call.get("function", {}) if isinstance(tool_call, dict) else {}
+        summaries.append(
+            {
+                "id": tool_call.get("id") if isinstance(tool_call, dict) else None,
+                "name": function.get("name"),
+                "args_len": len(function.get("arguments", "")),
+            }
+        )
+    return summaries
+
+
+def _build_buffered_chunk(buffered_text: str) -> str:
+    """wrap buffered text into an sse chunk for the client."""
+    buffered_chunk = {
+        "choices": [
+            {
+                "delta": {"content": buffered_text}
+            }
+        ]
+    }
+    return f"data: {json.dumps(buffered_chunk)}\n\n"
+
+
+async def _persist_user_message(
+    chat_request: ChatRequest,
+    effective_user_id: Optional[str],
+    conversation_id: Optional[str]
+) -> None:
+    """persist the latest user message for conversation history."""
+    if not (effective_user_id and conversation_id and chat_request.messages):
+        return
+
+    last_msg = chat_request.messages[-1]
+    if last_msg.role != "user":
+        return
+
+    masked_storage, _ = pii_masker.mask_text(last_msg.content)
+    await asyncio.to_thread(
+        user_db.add_message,
+        conversation_id,
+        "user",
+        masked_storage
+    )
+    logger.debug(f"saved user message to conversation: {conversation_id}")
+
+
+async def _stream_chat(
+    *,
+    service: OpenAIAgentService,
+    safety_guard: SafetyGuard,
+    detected_language: str,
+    messages: List[Dict[str, str]],
+    last_user_message: str,
+    effective_user_id: Optional[str],
+    conversation_id: Optional[str]
+):
+    """stream model output and tool calls, persisting assistant messages."""
+    assistant_content = ""
+    tool_calls_made: List[str] = []
+    total_tokens = 0
+    max_steps = 10
+    step = 0
+    working_messages = list(messages)
+
+    try:
+        while step < max_steps:
+            response = await service.openai_client.client.chat.completions.create(
+                model=settings.openai_model,
+                messages=working_messages,
+                tools=service.tools,
+                tool_choice="auto",
+                stream=True,
+                temperature=settings.openai_temperature
+            )
+
+            tool_call_accumulator = ToolCallAccumulator()
+            processor = StreamProcessor(
+                safety_guard=safety_guard,
+                detected_language=detected_language,
+                tool_call_accumulator=tool_call_accumulator,
+                tool_calls_made=tool_calls_made,
+                effective_user_id=effective_user_id,
+                user_db=user_db,
+                assistant_content=assistant_content,
+                total_tokens=total_tokens
+            )
+
+            async for payload in processor.iter_chunks(response):
+                yield payload
+
+            assistant_content = processor.assistant_content
+            step_assistant_content = processor.step_assistant_content
+            buffered_text = processor.buffered_text
+            tool_calls_detected = processor.tool_calls_detected
+            safety_blocked = processor.safety_blocked
+            total_tokens = processor.total_tokens
+
+            if safety_blocked:
+                break
+
+            tool_calls = tool_call_accumulator.build()
+            if not tool_calls:
+                if buffered_text:
+                    yield _build_buffered_chunk(buffered_text)
+                break
+
+            logger.info(
+                f"step {step} tool calls summary: {_summarize_tool_calls(tool_calls)}"
+            )
+
+            assistant_tool_message = {
+                "role": "assistant",
+                "content": "" if tool_calls_detected else step_assistant_content,
+                "tool_calls": tool_calls
+            }
+            tool_runner = ToolRunner(
+                service=service,
+                last_user_message=last_user_message,
+                detected_language=detected_language,
+                effective_user_id=effective_user_id
+            )
+            async for payload in tool_runner.run(tool_calls):
+                yield payload
+            tool_messages = tool_runner.tool_messages
+
+            if not tool_messages:
+                logger.error("tool calls detected but no valid tool messages could be produced")
+                break
+
+            # always pass tool results back to the model - let the model formulate the response
+            # don't short-circuit with fallback_message, as the model should handle errors gracefully
+            working_messages = working_messages + [assistant_tool_message] + tool_messages
+            step += 1
+
+        if effective_user_id and conversation_id and assistant_content:
+            await asyncio.to_thread(
+                user_db.add_message,
+                conversation_id,
+                "assistant",
+                assistant_content,
+                json.dumps(tool_calls_made) if tool_calls_made else None,
+                total_tokens
+            )
+
+        logger.info(
+            f"streaming complete for conversation: {conversation_id}, "
+            f"tokens: {total_tokens}, tools used: {tool_calls_made}"
+        )
+        yield "data: [DONE]\n\n"
+
+    except Exception as e:
+        logger.error(f"streaming error: {str(e)}", exc_info=True)
+        logger.error(f"stack trace: {traceback.format_exc()}")
+        error_data = {
+            "error": "stream_error",
+            "message": "An error occurred while processing your request. Please try again."
+        }
+        yield f"data: {json.dumps(error_data)}\n\n"
+        yield "data: [DONE]\n\n"
+
+
 @router.post("/completions")
 async def chat_completion(
     chat_request: ChatRequest,
@@ -57,7 +267,7 @@ async def chat_completion(
         streaming response with chat completions
     """
     try:
-        client_ip = request.client.host if request and request.client else "unknown"
+        client_ip = _get_client_ip(request)
         effective_user_id = x_user_id or chat_request.user_id
 
         audit_logger.log_data_access(
@@ -68,15 +278,7 @@ async def chat_completion(
             ip_address=client_ip
         )
 
-        requested_language = (chat_request.language or "auto").lower()
-        detected_language = requested_language
-        if requested_language == "auto":
-            last_user_message = next(
-                (msg.content for msg in reversed(chat_request.messages) if msg.role == "user"),
-                ""
-            )
-            detected_language = detect_language(last_user_message)
-
+        detected_language = _resolve_language(chat_request)
         logger.info(
             f"chat completion request from user: {effective_user_id}, "
             f"language: {detected_language}, messages: {len(chat_request.messages)}"
@@ -94,23 +296,12 @@ async def chat_completion(
         service = get_openai_service()
         system_prompt = service.build_system_prompt(language=detected_language)
 
-        masked_messages = []
-        for msg in chat_request.messages:
-            masked_content, detections = pii_masker.mask_text(msg.content)
-            if detections:
-                audit_logger.log_pii_access(
-                    user_id=effective_user_id or "anonymous",
-                    pii_type=",".join([d["type"] for d in detections]),
-                    action="mask_outbound",
-                    ip_address=client_ip
-                )
-                logger.warning(f"pii detected and masked in user message: {[d['type'] for d in detections]}")
-            masked_messages.append({"role": msg.role, "content": masked_content})
-
-        last_user_message = next(
-            (msg["content"] for msg in reversed(masked_messages) if msg["role"] == "user"),
-            ""
+        masked_messages, last_user_message = _mask_messages(
+            chat_request.messages,
+            effective_user_id,
+            client_ip
         )
+
         if last_user_message:
             logger.info(
                 f"last user message (masked, first 160 chars): {last_user_message[:160]}"
@@ -120,140 +311,20 @@ async def chat_completion(
             {"role": "system", "content": system_prompt}
         ] + masked_messages
 
-        if effective_user_id and conversation_id and chat_request.messages:
-            last_msg = chat_request.messages[-1]
-            if last_msg.role == "user":
-                masked_storage, _ = pii_masker.mask_text(last_msg.content)
-                await asyncio.to_thread(
-                    user_db.add_message,
-                    conversation_id,
-                    "user",
-                    masked_storage
-                )
-                logger.debug(f"saved user message to conversation: {conversation_id}")
+        await _persist_user_message(chat_request, effective_user_id, conversation_id)
 
         safety_guard = SafetyGuard()
 
-        async def generate():
-            """generate streaming response chunks with tracking"""
-            assistant_content = ""
-            tool_calls_made = []
-            total_tokens = 0
-            max_steps = 10
-            step = 0
-            working_messages = list(messages)
-
-            try:
-                while step < max_steps:
-                    response = await service.openai_client.client.chat.completions.create(
-                        model=settings.openai_model,
-                        messages=working_messages,
-                        tools=service.tools,
-                        tool_choice="auto",
-                        stream=True,
-                        temperature=settings.openai_temperature
-                    )
-
-                    tool_call_accumulator = ToolCallAccumulator()
-                    processor = StreamProcessor(
-                        safety_guard=safety_guard,
-                        detected_language=detected_language,
-                        tool_call_accumulator=tool_call_accumulator,
-                        tool_calls_made=tool_calls_made,
-                        effective_user_id=effective_user_id,
-                        user_db=user_db,
-                        assistant_content=assistant_content,
-                        total_tokens=total_tokens
-                    )
-
-                    async for payload in processor.iter_chunks(response):
-                        yield payload
-
-                    assistant_content = processor.assistant_content
-                    step_assistant_content = processor.step_assistant_content
-                    buffered_text = processor.buffered_text
-                    tool_calls_detected = processor.tool_calls_detected
-                    safety_blocked = processor.safety_blocked
-                    total_tokens = processor.total_tokens
-
-                    if safety_blocked:
-                        break
-
-                    tool_calls = tool_call_accumulator.build()
-                    if not tool_calls:
-                        if buffered_text:
-                            buffered_chunk = {
-                                "choices": [
-                                    {
-                                        "delta": {"content": buffered_text}
-                                    }
-                                ]
-                            }
-                            yield f"data: {json.dumps(buffered_chunk)}\n\n"
-                        break
-
-                    tool_call_summaries = []
-                    for tool_call in tool_calls:
-                        tool_call_summaries.append(
-                            {
-                                "id": tool_call.get("id"),
-                                "name": tool_call.get("function", {}).get("name"),
-                                "args_len": len(tool_call.get("function", {}).get("arguments", "")),
-                            }
-                        )
-                    logger.info(
-                        f"step {step} tool calls summary: {tool_call_summaries}"
-                    )
-
-                    assistant_tool_message = {
-                        "role": "assistant",
-                        "content": "" if tool_calls_detected else step_assistant_content,
-                        "tool_calls": tool_calls
-                    }
-                    tool_runner = ToolRunner(
-                        service=service,
-                        last_user_message=last_user_message,
-                        detected_language=detected_language,
-                        effective_user_id=effective_user_id
-                    )
-                    async for payload in tool_runner.run(tool_calls):
-                        yield payload
-                    tool_messages = tool_runner.tool_messages
-
-                    if not tool_messages:
-                        logger.error("tool calls detected but no valid tool messages could be produced")
-                        break
-
-                    # always pass tool results back to the model - let the model formulate the response
-                    # don't short-circuit with fallback_message, as the model should handle errors gracefully
-                    working_messages = working_messages + [assistant_tool_message] + tool_messages
-                    step += 1
-
-                if effective_user_id and conversation_id and assistant_content:
-                    await asyncio.to_thread(
-                        user_db.add_message,
-                        conversation_id,
-                        "assistant",
-                        assistant_content,
-                        json.dumps(tool_calls_made) if tool_calls_made else None,
-                        total_tokens
-                    )
-
-                logger.info(f"streaming complete for conversation: {conversation_id}, tokens: {total_tokens}, tools used: {tool_calls_made}")
-                yield "data: [DONE]\n\n"
-
-            except Exception as e:
-                logger.error(f"streaming error: {str(e)}", exc_info=True)
-                logger.error(f"stack trace: {traceback.format_exc()}")
-                error_data = {
-                    "error": "stream_error",
-                    "message": "An error occurred while processing your request. Please try again."
-                }
-                yield f"data: {json.dumps(error_data)}\n\n"
-                yield "data: [DONE]\n\n"
-
         return StreamingResponse(
-            generate(),
+            _stream_chat(
+                service=service,
+                safety_guard=safety_guard,
+                detected_language=detected_language,
+                messages=messages,
+                last_user_message=last_user_message,
+                effective_user_id=effective_user_id,
+                conversation_id=conversation_id
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -264,6 +335,7 @@ async def chat_completion(
         )
 
     except Exception as e:
+        logger.exception("chat completion failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 
