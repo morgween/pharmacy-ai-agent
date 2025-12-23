@@ -212,12 +212,21 @@ Agent Engineer - Home Assignment 18-12-25.pdf
 
 # Test files
 test_*.py
+tests/
 
 # Database files
 *.db
 
 # User data (contains passwords)
 data/users.json
+
+# Log files and directories
+logs/
+
+# Internal documentation (not for repo)
+VERIFICATION_REPORT.md
+TESTING_GUIDE.md
+REQUIREMENTS_CHECKLIST.md
 
 # Claude Code plans
 .claude/
