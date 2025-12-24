@@ -130,6 +130,12 @@ class Messages:
             "ru": "Аптеки в '{searched_location}' не найдены. Укажите ближайший город или индекс. Доступные города: {available}.",
             "ar": "لم يتم العثور على صيدليات في '{searched_location}'. يرجى إدخال مدينة قريبة أو الرمز البريدي. المدن المتاحة: {available}."
         },
+        "fallback_nearest": {
+            "en": "I couldn't find pharmacies in '{searched_location}'. The nearest city is {suggested_city}. The nearest pharmacy is {name} at {address}.",
+            "he": "לא מצאתי בתי מרקחת ב\"{searched_location}\". העיר הקרובה ביותר היא {suggested_city}. בית המרקחת הקרוב הוא {name} ב{address}.",
+            "ru": "Я не нашёл аптек в \"{searched_location}\". Ближайший город — {suggested_city}. Ближайшая аптека — {name} по адресу {address}.",
+            "ar": "لم أجد صيدليات في \"{searched_location}\". أقرب مدينة هي {suggested_city}. أقرب صيدلية هي {name} في {address}."
+        },
         "found": {
             "en": "Found {count} pharmacy locations near you. The nearest is {name} at {address}.",
             "he": "נמצאו {count} בתי מרקחת בקרבתך. הקרוב ביותר הוא {name} בכתובת {address}.",

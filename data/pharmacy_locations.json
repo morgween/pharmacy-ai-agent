@@ -82,6 +82,7 @@
       "saturday": "Closed"
     },
     "services": ["prescription_filling", "consultation", "compounding"],
+    "nearby_cities": ["Abu Gosh", "Abu Ghosh"],
     "coordinates": {
       "lat": 31.7683,
       "lng": 35.2137

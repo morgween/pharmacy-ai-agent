@@ -31,6 +31,7 @@ class PharmacyTools:
             success (bool)
             location_not_found (bool)
             searched_location (str)
+            suggested_city (str, optional)
             count (int)
             pharmacies (list[dict])
                 - id (str)
@@ -50,6 +51,7 @@ class PharmacyTools:
 
         fallback behavior:
             - fuzzy match is attempted on city names (levenshtein <= 2).
+            - city aliases can map to the nearest known city.
             - when no locations found, returns success true, count 0, and available cities list.
         """
         zip_code = args.get('zip_code')
@@ -71,6 +73,7 @@ class PharmacyTools:
         filtered_locations = pharmacy_locations
         searched_location = zip_code or city
         location_not_found = False
+        suggested_city = None
 
         if zip_code:
             filtered_locations = [p for p in pharmacy_locations if zip_code in p.get('zip_code', '')]
@@ -118,7 +121,24 @@ class PharmacyTools:
                 searched_location = matched_city
                 location_not_found = False
 
-        # if no match found, indicate this and ask for a nearby city/zip
+        if not filtered_locations and city:
+            city_norm = normalize_text(city)
+            alias_city_counts: Dict[str, int] = {}
+            for pharmacy in pharmacy_locations:
+                for alias in pharmacy.get("nearby_cities", []) or []:
+                    if normalize_text(alias) == city_norm:
+                        alias_city = pharmacy.get("city", "")
+                        if alias_city:
+                            alias_city_counts[alias_city] = alias_city_counts.get(alias_city, 0) + 1
+                        break
+            if alias_city_counts:
+                suggested_city = max(alias_city_counts, key=alias_city_counts.get)
+                filtered_locations = [
+                    p for p in pharmacy_locations if p.get('city', '').lower() == suggested_city.lower()
+                ]
+                location_not_found = True
+
+        # if no match found, indicate this and ask for another location
         if not filtered_locations and searched_location:
             location_not_found = True
             available_cities = list(set(p.get('city', '') for p in pharmacy_locations))
@@ -158,19 +178,25 @@ class PharmacyTools:
             "services": p["services"]
         } for p in filtered_locations[:5]]
 
-        message = Messages.get(
-            "PHARMACY",
-            "found",
-            lang,
-            count=len(filtered_locations),
-            name=formatted_pharmacies[0]["name"],
-            address=formatted_pharmacies[0]["address"]
-        )
+        message_key = "found"
+        message_kwargs = {
+            "count": len(filtered_locations),
+            "name": formatted_pharmacies[0]["name"],
+            "address": formatted_pharmacies[0]["address"]
+        }
+        if suggested_city:
+            message_key = "fallback_nearest"
+            message_kwargs.update({
+                "searched_location": city,
+                "suggested_city": suggested_city
+            })
+        message = Messages.get("PHARMACY", message_key, lang, **message_kwargs)
 
         return {
             "success": True,
             "location_not_found": location_not_found,
             "searched_location": searched_location,
+            "suggested_city": suggested_city,
             "count": len(filtered_locations),
             "pharmacies": formatted_pharmacies,
             "message": message

@@ -2,7 +2,6 @@
 import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 from backend.models.user import UserDatabase
 
 router = APIRouter(prefix="/auth", tags=["auth"])
