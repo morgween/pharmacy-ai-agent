@@ -14,7 +14,7 @@ Real-time conversational AI pharmacy assistant for a retail pharmacy chain. Agen
 
 ## Additional documentation
 ### Screenshots evidence 
-[Screenshots folder](docs/screenshots)
+[Screenshots folder](docs/Screenshots)
 ### Additional documentation files
 [Architecture overview](docs/ARCHITECTURE.md)
 
@@ -119,13 +119,13 @@ See `tests/FLOWS.md` for detailed flow definitions.
 
 ### 2. Seven Custom Tools
 
-* [get_medication_info](backend\services\tools\medication_tools.py#L172) Retrieve detailed medication information
-* [resolve_medication_id](backend\services\tools\medication_tools.py#L108) Convert medication name to internal ID 
-* [check_stock](backend\services\tools\inventory_tools.py#L22) Verify medication stock availability 
-* [search_by_ingredient](backend\services\tools\medication_tools.py#L21) Find medications by active ingredient 
-* [get_user_prescriptions](backend\services\tools\prescription_tools.py#L26) Get user's prescription list (requires auth) 
-* [get_handling_warnings](backend\services\tools\handling_tools.py#L20) Retrieve medication warnings 
-* [find_nearest_pharmacy](backend\services\tools\pharmacy_tools.py#L22) Locate nearby pharmacy addresses
+* [get_medication_info](backend/services/tools/medication_tools.py#L172) Retrieve detailed medication information
+* [resolve_medication_id](backend/services/tools/medication_tools.py#L108) Convert medication name to internal ID 
+* [check_stock](backend/services/tools/inventory_tools.py#L22) Verify medication stock availability 
+* [search_by_ingredient](backend/services/tools/medication_tools.py#L21) Find medications by active ingredient 
+* [get_user_prescriptions](backend/services/tools/prescription_tools.py#L26) Get user's prescription list (requires auth) 
+* [get_handling_warnings](backend/services/tools/handling_tools.py#L20) Retrieve medication warnings 
+* [find_nearest_pharmacy](backend/services/tools/pharmacy_tools.py#L22) Locate nearby pharmacy addresses
 #### For documentation check linked files
 ### 3. Policy Enforcement
 The agent strictly adheres to a no-medical-advice policy:
