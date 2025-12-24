@@ -14,13 +14,13 @@ Real-time conversational AI pharmacy assistant for a retail pharmacy chain. Agen
 
 ## Additional documentation
 ### Screenshots evidence 
-[Screenshots folder](docs\screenshots)
+[Screenshots folder](docs/screenshots)
 ### Additional documentation files
-[Architecture overview](docs\ARCHITECTURE.md)
+[Architecture overview](docs/ARCHITECTURE.md)
 
-[Model evaluation plan](docs\EVALUATION_PLAN.md)
+[Model evaluation plan](docs/EVALUATION_PLAN.md)
 
-[Multi Flows](docs\FLOWS.md)
+[Multi Flows](docs/FLOWS.md)
 ## Architecture
 
 ### System Components
