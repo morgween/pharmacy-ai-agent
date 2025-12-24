@@ -15,8 +15,10 @@ def tool_error_handler(
 ) -> Callable[[Callable[..., Awaitable[Dict[str, Any]]]], Callable[..., Awaitable[Dict[str, Any]]]]:
     """decorator for consistent tool error handling"""
     def decorator(func: Callable[..., Awaitable[Dict[str, Any]]]):
+        """wrap a tool coroutine and return normalized error payloads."""
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Dict[str, Any]:
+            """execute tool and return localized error on exceptions."""
             try:
                 return await func(*args, **kwargs)
             except Exception as exc:

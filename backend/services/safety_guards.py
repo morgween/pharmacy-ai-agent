@@ -6,7 +6,7 @@ from backend.i18n.messages import Messages
 
 
 class SafetyGuard:
-    """Detects potential medical advice, diagnosis, promotional language, or upselling."""
+    """detects potential medical advice, diagnosis, promotional language, or upselling."""
 
     def __init__(self) -> None:
         # medical advice patterns - designed to catch personal advice, not label information
@@ -74,7 +74,7 @@ class SafetyGuard:
         ]
 
     def check_text(self, text: str) -> Optional[str]:
-        """Return the violation reason if any prohibited pattern is detected."""
+        """return the violation reason if any prohibited pattern is detected."""
         if self._is_refusal(text):
             return None
         for regex, reason in self._patterns:
@@ -83,7 +83,7 @@ class SafetyGuard:
         return None
 
     def _is_refusal(self, text: str) -> bool:
-        """Return True when the text is a refusal that should not be blocked."""
+        """return true when the text is a refusal that should not be blocked."""
         if not text:
             return False
         for regex in self._refusal_patterns:

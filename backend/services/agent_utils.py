@@ -34,7 +34,7 @@ def format_ambiguous_response(
     candidates: List[Dict[str, Any]],
     lang: str
 ) -> Dict[str, Any]:
-    """Build a clarification response when multiple meds match within threshold."""
+    """build a clarification response when multiple meds match within threshold."""
     names = [candidate.get("name") for candidate in candidates if candidate.get("name")]
     options = names[:3]
     options_text = ", ".join(options) if options else ""

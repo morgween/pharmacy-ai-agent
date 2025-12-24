@@ -31,6 +31,7 @@ class ToolRunner:
         self,
         tool_calls: List[Dict[str, Any]]
     ) -> Tuple[List[Tuple[Dict[str, Any], str, Dict[str, Any]]], List[Tuple[Dict[str, Any], str, Dict[str, Any]]]]:
+        """parse tool calls and infer missing arguments when possible."""
         parsed_tool_calls: List[Tuple[Dict[str, Any], str, Dict[str, Any]]] = []
         empty_tool_calls: List[Tuple[Dict[str, Any], str, Dict[str, Any]]] = []
 

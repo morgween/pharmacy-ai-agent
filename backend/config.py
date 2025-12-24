@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     users_json_path: str = os.path.join(
         os.path.dirname(__file__), "..", "data", "demo_users.json"
     )
+    prescriptions_json_path: str = os.path.join(
+        os.path.dirname(__file__), "..", "data", "demo_prescriptions.json"
+    )
 
     inventory_json_path: str = os.path.join(
         os.path.dirname(__file__), "..", "demo_server_app", "data", "inventory.json"

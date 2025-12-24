@@ -26,23 +26,30 @@ class AgentTools:
         self._handling_tools = HandlingTools(medications_api)
 
     async def search_by_ingredient(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """delegate ingredient search to medication tools."""
         return await self._medication_tools.search_by_ingredient(args)
 
     async def resolve_medication_id(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """delegate medication id resolution to medication tools."""
         return await self._medication_tools.resolve_medication_id(args)
 
     async def get_medication_info(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """delegate medication info lookup to medication tools."""
         return await self._medication_tools.get_medication_info(args)
 
     async def check_stock(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """delegate stock check to inventory tools."""
         return await self._inventory_tools.check_stock(args)
 
     async def find_nearest_pharmacy(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """delegate pharmacy search to pharmacy tools."""
         return await self._pharmacy_tools.find_nearest_pharmacy(args)
 
     async def get_user_prescriptions(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """delegate prescription lookup to prescription tools."""
         return await self._prescription_tools.get_user_prescriptions(args)
 
     async def get_handling_warnings(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """delegate handling warnings to handling tools."""
         return await self._handling_tools.get_handling_warnings(args)
 

@@ -160,29 +160,85 @@ class UserDatabase:
 
     def _init_demo_users(self):
         """create demo users if database is empty"""
+        self.seed_users(force=False)
+
+    def seed_users(self, force: bool = False) -> int:
+        """
+        seed demo users from json
+
+        args:
+            force: when true, delete existing users before seeding
+
+        returns:
+            number of users inserted
+        """
         with get_db_session(self.Session, commit=True) as session:
+            if force:
+                session.query(UserUsage).delete()
+                session.query(User).delete()
+
             count = self._repo.count_users(session)
+            if count and not force:
+                return 0
 
-            if count == 0:
-                with open(settings.users_json_path, 'r', encoding='utf-8') as f:
-                    demo_users = json.load(f)
+            with open(settings.users_json_path, 'r', encoding='utf-8') as f:
+                demo_users = json.load(f)
 
-                for user_data in demo_users:
-                    user = User(
-                        id=user_data["id"],
-                        email=user_data["email"],
-                        name=user_data["name"],
-                        preferred_language=user_data["preferred_language"]
-                    )
-                    user.set_password(user_data["password"])
+            for user_data in demo_users:
+                user = User(
+                    id=user_data["id"],
+                    email=user_data["email"],
+                    name=user_data["name"],
+                    preferred_language=user_data["preferred_language"]
+                )
+                user.set_password(user_data["password"])
 
-                    # create usage stats
-                    usage = UserUsage(user_id=user.id)
+                # create usage stats
+                usage = UserUsage(user_id=user.id)
 
-                    self._repo.add_user(session, user)
-                    self._repo.add_usage(session, usage)
+                self._repo.add_user(session, user)
+                self._repo.add_usage(session, usage)
 
-                print(f"created {len(demo_users)} demo users (password: demo123)")
+            print(f"created {len(demo_users)} demo users (password: demo123)")
+            return len(demo_users)
+
+    def seed_prescriptions(self, force: bool = False) -> int:
+        """
+        seed demo prescriptions from json
+
+        args:
+            force: when true, delete existing prescriptions before seeding
+
+        returns:
+            number of prescriptions inserted
+        """
+        with get_db_session(self.Session, commit=True) as session:
+            if force:
+                session.query(Prescription).delete()
+
+            existing = session.query(Prescription).count()
+            if existing and not force:
+                return 0
+
+            with open(settings.prescriptions_json_path, 'r', encoding='utf-8') as f:
+                prescriptions = json.load(f)
+
+            inserted = 0
+            for entry in prescriptions:
+                prescription = Prescription(
+                    id=entry["id"],
+                    patient_id=entry["patient_id"],
+                    med_id=entry["med_id"],
+                    prescriber_name=entry["prescriber_name"],
+                    quantity=entry["quantity"],
+                    pickup_location=entry["pickup_location"],
+                    notes=entry.get("notes"),
+                    status=entry.get("status", "pending")
+                )
+                session.add(prescription)
+                inserted += 1
+
+            return inserted
 
     def authenticate(self, email: str, password: str) -> Optional[User]:
         """

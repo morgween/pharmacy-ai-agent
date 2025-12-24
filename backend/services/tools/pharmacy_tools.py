@@ -143,6 +143,7 @@ class PharmacyTools:
 
         # format hours into a simple summary string
         def format_hours(hours_dict):
+            """format hours dict into a compact display string."""
             return f"Sun: {hours_dict.get('sunday', 'Closed')}, Mon-Thu: {hours_dict.get('monday', 'Closed')}, Fri: {hours_dict.get('friday', 'Closed')}, Sat: {hours_dict.get('saturday', 'Closed')}"
 
         # format response

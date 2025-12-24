@@ -7,7 +7,7 @@ from backend.data_sources.base import normalize_text, levenshtein_distance
 
 
 def collect_medications(service: Any, language: str) -> List[Dict[str, str]]:
-    """Collect medication names and ingredients for matching."""
+    """collect medication names and ingredients for matching."""
     medications = []
     if hasattr(service.medications_api, "medications"):
         for med in service.medications_api.medications:
@@ -30,7 +30,7 @@ def infer_tool_arguments(
     detected_language: str,
     service: Any
 ) -> Dict[str, str]:
-    """Infer missing tool arguments from the last user message."""
+    """infer missing tool arguments from the last user message."""
     if not text:
         return {}
 

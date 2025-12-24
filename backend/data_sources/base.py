@@ -6,7 +6,7 @@ import unicodedata
 
 
 def normalize_text(text: str) -> str:
-    """Normalize text for matching across minor typos and formatting."""
+    """normalize text for matching across minor typos and formatting."""
     if not text:
         return ""
     normalized = unicodedata.normalize("NFKC", text)
@@ -17,7 +17,7 @@ def normalize_text(text: str) -> str:
 
 
 def levenshtein_distance(a: str, b: str, max_distance: Optional[int] = None) -> int:
-    """Compute Levenshtein distance with optional early exit."""
+    """compute levenshtein distance with optional early exit."""
     if a == b:
         return 0
     if not a:

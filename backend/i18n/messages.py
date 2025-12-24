@@ -1,13 +1,13 @@
 # coding: utf-8
-"""Centralized multilingual message dictionary with proper UTF-8 encoding"""
+"""centralized multilingual message dictionary with proper utf-8 encoding"""
 from typing import Any, Dict
 
 
 class Messages:
-    """Central repository for multilingual responses in English, Hebrew, Russian, and Arabic."""
+    """central repository for multilingual responses in english, hebrew, russian, and arabic."""
 
     # ============================================================================
-    # MEDICATION MESSAGES
+    # medication messages
     # ============================================================================
     MEDICATION: Dict[str, Dict[str, str]] = {
         "missing_ingredient": {
@@ -67,7 +67,7 @@ class Messages:
     }
 
     # ============================================================================
-    # INVENTORY MESSAGES
+    # inventory messages
     # ============================================================================
     INVENTORY: Dict[str, Dict[str, str]] = {
         "missing_med_id": {
@@ -115,7 +115,7 @@ class Messages:
     }
 
     # ============================================================================
-    # PHARMACY MESSAGES
+    # pharmacy messages
     # ============================================================================
     PHARMACY: Dict[str, Dict[str, str]] = {
         "missing_location": {
@@ -145,7 +145,7 @@ class Messages:
     }
 
     # ============================================================================
-    # PRESCRIPTION MESSAGES
+    # prescription messages
     # ============================================================================
     PRESCRIPTION: Dict[str, Dict[str, str]] = {
         "missing_user": {
@@ -181,7 +181,7 @@ class Messages:
     }
 
     # ============================================================================
-    # HANDLING MESSAGES
+    # handling messages
     # ============================================================================
     HANDLING: Dict[str, Dict[str, str]] = {
         "missing_med_id": {
@@ -229,7 +229,7 @@ class Messages:
     }
 
     # ============================================================================
-    # GENERAL MESSAGES
+    # general messages
     # ============================================================================
     GENERAL: Dict[str, Dict[str, str]] = {
         "ambiguous_match": {
@@ -247,7 +247,7 @@ class Messages:
     }
 
     # ============================================================================
-    # SAFETY MESSAGES
+    # safety messages
     # ============================================================================
     SAFETY: Dict[str, Dict[str, str]] = {
         "refusal_base": {
@@ -266,22 +266,23 @@ class Messages:
 
     @staticmethod
     def get(category: str, key: str, lang: str = "en", **kwargs: Any) -> str:
-        """
-        Get translated message with fallback to English.
+                """
+        get translated message with fallback to english.
 
-        Args:
-            category: Message category (MEDICATION, INVENTORY, PHARMACY, etc.)
-            key: Message key within the category
-            lang: Language code (en, he, ru, ar)
-            **kwargs: Format arguments for string interpolation
+        args:
+            category: message category (medication, inventory, pharmacy, etc.)
+            key: message key within the category
+            lang: language code (en, he, ru, ar)
+            **kwargs: format arguments for string interpolation
 
-        Returns:
-            Translated message string, formatted with kwargs if provided
+        returns:
+            translated message string, formatted with kwargs if provided
 
-        Example:
+        example:
             >>> Messages.get('MEDICATION', 'not_found', 'he', name='Aspirin')
-            "לא מצאתי תרופה בשם 'Aspirin'..."
+            "?? ????? ????? ??? 'Aspirin'..."
         """
+
         category_dict = getattr(Messages, category.upper(), {})
         entry = category_dict.get(key, {})
 

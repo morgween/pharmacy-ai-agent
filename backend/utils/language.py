@@ -9,7 +9,7 @@ _LANGUAGE_HINTS = {
 
 
 def detect_language(text: str) -> str:
-    """Detect language based on script. Defaults to English."""
+    """detect language based on script. defaults to english."""
     if not text:
         return "en"
 

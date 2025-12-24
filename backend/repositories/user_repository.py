@@ -27,12 +27,15 @@ class UserRepository:
         self._Prescription = prescription_cls
 
     def count_users(self, session: Session) -> int:
+        """return total user count."""
         return session.query(self._User).count()
 
     def add_user(self, session: Session, user) -> None:
+        """persist a user record."""
         session.add(user)
 
     def add_usage(self, session: Session, usage) -> None:
+        """persist a user usage record."""
         session.add(usage)
 
     def get_user_by_email(
@@ -41,15 +44,18 @@ class UserRepository:
         email: str,
         active_only: bool = True
     ) -> Optional[User]:
+        """return a user by email, optionally filtering by active flag."""
         query = session.query(self._User).filter(self._User.email == email)
         if active_only:
             query = query.filter(self._User.is_active == True)
         return query.first()
 
     def get_user_by_id(self, session: Session, user_id: str) -> Optional[User]:
+        """return a user by id."""
         return session.query(self._User).filter(self._User.id == user_id).first()
 
     def get_usage(self, session: Session, user_id: str) -> Optional[UserUsage]:
+        """return usage record for a user."""
         return session.query(self._UserUsage).filter(self._UserUsage.user_id == user_id).first()
 
     def update_usage(
@@ -66,6 +72,7 @@ class UserRepository:
         check_stock: int = 0,
         last_activity: Optional[datetime] = None
     ) -> None:
+        """apply usage counter increments for a user."""
         usage = self.get_usage(session, user_id)
         if not usage:
             return
@@ -90,15 +97,19 @@ class UserRepository:
             usage.last_activity = last_activity
 
     def add_conversation(self, session: Session, conversation) -> None:
+        """persist a conversation record."""
         session.add(conversation)
 
     def get_conversation(self, session: Session, conversation_id: str) -> Optional[Conversation]:
+        """return a conversation by id."""
         return session.query(self._Conversation).filter(self._Conversation.id == conversation_id).first()
 
     def add_message(self, session: Session, message) -> None:
+        """persist a message record."""
         session.add(message)
 
     def list_messages(self, session: Session, conversation_id: str) -> List[Message]:
+        """return messages for a conversation in creation order."""
         return (
             session.query(self._Message)
             .filter(self._Message.conversation_id == conversation_id)
@@ -113,6 +124,7 @@ class UserRepository:
         active_only: bool,
         active_statuses: Iterable[str]
     ) -> List[Prescription]:
+        """return prescriptions for a user, optionally filtered by status."""
         query = session.query(self._Prescription).filter(self._Prescription.patient_id == user_id)
         if active_only:
             query = query.filter(self._Prescription.status.in_(list(active_statuses)))

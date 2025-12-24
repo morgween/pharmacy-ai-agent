@@ -73,6 +73,18 @@ class MedicationsDB(MedicationDataSource):
 
         populates from medications.json if database is empty or out of sync
         """
+        self.seed_from_json(force=False)
+
+    def seed_from_json(self, force: bool = False) -> int:
+        """
+        seed medications from json file
+
+        args:
+            force: when true, overwrite existing records
+
+        returns:
+            number of medications inserted
+        """
         with get_db_session(self.Session, commit=True) as session:
             with open(settings.medications_json_path, 'r', encoding='utf-8') as f:
                 medications = json.load(f)
@@ -80,12 +92,13 @@ class MedicationsDB(MedicationDataSource):
             expected_ids = {med.get("id") for med in medications if med.get("id")}
             existing_ids = set(self._repo.list_medication_ids(session))
 
-            if existing_ids and existing_ids == expected_ids:
-                return
+            if not force and existing_ids and existing_ids == expected_ids:
+                return 0
 
             if existing_ids:
                 self._repo.clear_all(session)
 
+            inserted = 0
             for med_data in medications:
                 # create medication record
                 med = Medication(
@@ -109,6 +122,9 @@ class MedicationsDB(MedicationDataSource):
                     med.translations.append(i18n)
 
                 self._repo.add_medication(session, med)
+                inserted += 1
+
+            return inserted
 
     def _model_to_dict(self, medication: Medication) -> Dict:
         """
