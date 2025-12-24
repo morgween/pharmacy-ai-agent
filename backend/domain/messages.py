@@ -1,4 +1,3 @@
-# coding: utf-8
 """centralized multilingual message dictionary with proper utf-8 encoding"""
 from typing import Any, Dict
 
@@ -272,7 +271,7 @@ class Messages:
 
     @staticmethod
     def get(category: str, key: str, lang: str = "en", **kwargs: Any) -> str:
-                """
+        """
         get translated message with fallback to english.
 
         args:
@@ -283,10 +282,6 @@ class Messages:
 
         returns:
             translated message string, formatted with kwargs if provided
-
-        example:
-            >>> Messages.get('MEDICATION', 'not_found', 'he', name='Aspirin')
-            "?? ????? ????? ??? 'Aspirin'..."
         """
 
         category_dict = getattr(Messages, category.upper(), {})

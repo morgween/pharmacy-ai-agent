@@ -4,7 +4,7 @@ import re
 from typing import Dict, Any, List
 
 from backend.data_sources.base import normalize_text, levenshtein_distance
-from backend.i18n.messages import Messages
+from backend.domain.messages import Messages
 from backend.utils.response import tool_error_handler
 
 logger = logging.getLogger(__name__)

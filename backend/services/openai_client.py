@@ -3,7 +3,7 @@ import logging
 from typing import Dict, List
 from openai import AsyncOpenAI
 
-from backend.config import settings
+from backend.domain.config import settings
 from backend.prompts import build_system_prompt
 
 logger = logging.getLogger(__name__)

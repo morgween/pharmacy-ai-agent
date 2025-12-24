@@ -3,7 +3,7 @@ import asyncio
 import logging
 from typing import Dict, Any
 
-from backend.i18n.messages import Messages
+from backend.domain.messages import Messages
 from backend.utils.response import tool_error_handler
 
 logger = logging.getLogger(__name__)

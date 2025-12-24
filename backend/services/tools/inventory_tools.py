@@ -5,8 +5,8 @@ from typing import Dict, Any
 
 import httpx
 
-from backend.config import settings
-from backend.i18n.messages import Messages
+from backend.domain.config import settings
+from backend.domain.messages import Messages
 
 logger = logging.getLogger(__name__)
 

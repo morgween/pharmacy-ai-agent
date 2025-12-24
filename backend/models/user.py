@@ -5,8 +5,8 @@ from sqlalchemy import create_engine, Column, String, Integer, Float, DateTime, 
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import bcrypt
 import json
-from backend.config import settings
-from backend.constants import PRESCRIPTION_ACTIVE_STATUSES
+from backend.domain.config import settings
+from backend.domain.constants import PRESCRIPTION_ACTIVE_STATUSES
 from backend.utils.db_context import get_db_session
 from backend.repositories.user_repository import UserRepository
 

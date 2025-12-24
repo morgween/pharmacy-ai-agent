@@ -3,7 +3,7 @@ import logging
 from functools import wraps
 from typing import Any, Awaitable, Callable, Dict, Optional
 
-from backend.i18n.messages import Messages
+from backend.domain.messages import Messages
 
 logger = logging.getLogger(__name__)
 

@@ -4,9 +4,9 @@ import json
 from typing import List, Dict, Optional
 from sqlalchemy import create_engine, Column, String, Float, Boolean, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from backend.config import settings
+from backend.domain.config import settings
 from backend.data_sources.base import MedicationDataSource, normalize_text, levenshtein_distance
-from backend.constants import SUPPORTED_LANGUAGES
+from backend.domain.constants import SUPPORTED_LANGUAGES
 from backend.utils.db_context import get_db_session
 from backend.repositories.medication_repository import MedicationRepository
 

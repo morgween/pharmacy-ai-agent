@@ -7,15 +7,16 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Iterable, Tuple
 import json
-from backend.config import settings
+from backend.domain.config import settings
 from backend.services.openai_service import get_openai_service, OpenAIAgentService
 from backend.services.safety_guards import SafetyGuard
 from backend.models.user import UserDatabase
-from backend.middleware.security import pii_masker, audit_logger
+from backend.utils.security import pii_masker, audit_logger
 from backend.utils.language import detect_language
 from backend.tool_framework.parser import ToolCallAccumulator
 from backend.tool_framework.stream import StreamProcessor
 from backend.tool_framework.runner import ToolRunner
+from backend.tool_framework.inference import infer_tool_arguments
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,77 @@ def _build_buffered_chunk(buffered_text: str) -> str:
     return f"data: {json.dumps(buffered_chunk)}\n\n"
 
 
+def _contains_any(text: str, keywords: List[str]) -> bool:
+    """return true if any keyword is contained in text (casefolded)."""
+    text_fold = text.casefold()
+    return any(keyword in text_fold for keyword in keywords)
+
+
+def _determine_tool_choice(
+    *,
+    service: OpenAIAgentService,
+    last_user_message: str,
+    detected_language: str
+) -> Optional[Dict[str, Dict[str, Dict[str, str]]]]:
+    """select a forced tool when intent is clear to avoid non-tool answers."""
+    if not last_user_message:
+        return None
+
+    ingredient_terms = [
+        "ingredient", "active ingredient", "contains", "contain", "содерж", "ингредиент", "состав",
+        "מרכיב", "מכיל", "يحتوي", "مكون", "المادة الفعالة"
+    ]
+    stock_terms = [
+        "in stock", "stock", "available", "availability", "в наличии", "налич", "есть ли",
+        "доступн", "מלאי", "במלאי", "זמין", "متوفر", "المخزون"
+    ]
+    pharmacy_terms = [
+        "nearest pharmacy", "pharmacy near", "nearby pharmacy", "find pharmacy",
+        "аптека", "аптек", "ближайш", "בית מרקחת", "קרובה", "صيدلية", "قريبة"
+    ]
+
+    if _contains_any(last_user_message, ingredient_terms):
+        args = infer_tool_arguments(
+            "search_by_ingredient",
+            last_user_message,
+            detected_language,
+            service
+        )
+        if args:
+            return {"type": "function", "function": {"name": "search_by_ingredient"}}
+
+    if _contains_any(last_user_message, stock_terms):
+        args = infer_tool_arguments(
+            "check_stock",
+            last_user_message,
+            detected_language,
+            service
+        )
+        if args:
+            return {"type": "function", "function": {"name": "check_stock"}}
+
+    if _contains_any(last_user_message, pharmacy_terms):
+        args = infer_tool_arguments(
+            "find_nearest_pharmacy",
+            last_user_message,
+            detected_language,
+            service
+        )
+        if args:
+            return {"type": "function", "function": {"name": "find_nearest_pharmacy"}}
+
+    args = infer_tool_arguments(
+        "get_medication_info",
+        last_user_message,
+        detected_language,
+        service
+    )
+    if args:
+        return {"type": "function", "function": {"name": "get_medication_info"}}
+
+    return None
+
+
 async def _persist_user_message(
     chat_request: ChatRequest,
     effective_user_id: Optional[str],
@@ -151,14 +223,20 @@ async def _stream_chat(
     max_steps = 10
     step = 0
     working_messages = list(messages)
+    forced_tool_choice = _determine_tool_choice(
+        service=service,
+        last_user_message=last_user_message,
+        detected_language=detected_language
+    )
 
     try:
         while step < max_steps:
+            tool_choice = forced_tool_choice if step == 0 and forced_tool_choice else "auto"
             response = await service.openai_client.client.chat.completions.create(
                 model=settings.openai_model,
                 messages=working_messages,
                 tools=service.tools,
-                tool_choice="auto",
+                tool_choice=tool_choice,
                 stream=True,
                 temperature=settings.openai_temperature
             )

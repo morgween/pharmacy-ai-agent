@@ -3,7 +3,7 @@ import os
 from pydantic_settings import BaseSettings
 from pydantic import field_validator, model_validator
 from typing import List, Union, Optional
-from backend.constants import ALLOWED_TOOL_SCHEMAS
+from backend.domain.constants import ALLOWED_TOOL_SCHEMAS
 
 class Settings(BaseSettings):
     """application configuration settings loaded from environment variables"""
@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # data source configuration
     medication_data_source: str = "api"
 
+    # auth configuration
+    password_pepper: str = ""
+    bcrypt_rounds: int = 12
+
     # openai configuration
     openai_model: str = "gpt-5-mini"
     openai_temperature: float = 1.0
@@ -31,28 +35,28 @@ class Settings(BaseSettings):
 
     # data paths
     medications_json_path: str = os.path.join(
-        os.path.dirname(__file__), "..", "data", "medications.json"
+        os.path.dirname(__file__), "../..", "data", "medications.json"
     )
     medications_db_path: str = os.path.join(
-        os.path.dirname(__file__), "..", "data", "medications.db"
+        os.path.dirname(__file__), "../..", "data", "medications.db"
     )
     user_db_path: str = os.path.join(
-        os.path.dirname(__file__), "..", "data", "users.db"
+        os.path.dirname(__file__), "../..", "data", "users.db"
     )
     users_json_path: str = os.path.join(
-        os.path.dirname(__file__), "..", "data", "demo_users.json"
+        os.path.dirname(__file__), "../..", "data", "demo_users.json"
     )
     prescriptions_json_path: str = os.path.join(
-        os.path.dirname(__file__), "..", "data", "demo_prescriptions.json"
+        os.path.dirname(__file__), "../..", "data", "demo_prescriptions.json"
     )
 
     inventory_json_path: str = os.path.join(
-        os.path.dirname(__file__), "..", "demo_server_app", "data", "inventory.json"
+        os.path.dirname(__file__), "../..", "demo_server_app", "data", "inventory.json"
     )
 
     # tool schemas directory
     tool_schemas_dir: str = os.path.join(
-        os.path.dirname(__file__), "..", "open_ai_tool_schemas"
+        os.path.dirname(__file__), "../..", "open_ai_tool_schemas"
     )
 
     # allowed tool schemas

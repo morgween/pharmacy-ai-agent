@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Any, Dict, List
 
-from backend.i18n.messages import Messages
+from backend.domain.messages import Messages
 
 logger = logging.getLogger(__name__)
 

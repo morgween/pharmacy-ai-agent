@@ -1,7 +1,7 @@
 """medication data source implementation using static json file"""
 import json
 from typing import List, Dict, Optional
-from backend.config import settings
+from backend.domain.config import settings
 from backend.data_sources.base import MedicationDataSource, normalize_text, levenshtein_distance
 
 

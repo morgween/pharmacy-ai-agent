@@ -3,10 +3,10 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.config import settings
+from backend.domain.config import settings
 from backend.routes import chat, auth
-from backend.logging_config import setup_logging
-from backend.middleware.security import SecurityMiddleware
+from backend.domain.logging_config import setup_logging
+from backend.utils.security import SecurityMiddleware
 
 logger = setup_logging(log_level="INFO", log_file="logs/pharmacy_agent.log")
 

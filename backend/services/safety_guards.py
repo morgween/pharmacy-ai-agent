@@ -2,7 +2,7 @@
 import re
 from typing import List, Optional, Tuple
 
-from backend.i18n.messages import Messages
+from backend.domain.messages import Messages
 
 
 class SafetyGuard:

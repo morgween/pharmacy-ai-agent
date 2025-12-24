@@ -1,7 +1,7 @@
 """openai service for pharmacy ai agent with function calling"""
 import logging
 from typing import List, Dict, Any, Optional
-from backend.config import settings
+from backend.domain.config import settings
 from backend.tool_framework.registry import load_tool_schemas
 from backend.tool_framework.executor import ToolExecutor
 from backend.services.agent_tools import AgentTools

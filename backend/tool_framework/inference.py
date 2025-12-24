@@ -2,7 +2,7 @@
 import re
 from typing import Dict, List, Any
 
-from backend.constants import SUPPORTED_LANGUAGES
+from backend.domain.constants import SUPPORTED_LANGUAGES
 from backend.data_sources.base import normalize_text, levenshtein_distance
 
 
